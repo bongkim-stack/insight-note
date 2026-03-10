@@ -95,6 +95,7 @@
             outline: none;
             transition: border-color .2s, box-shadow .2s;
             -webkit-appearance: none;
+            appearance: none;
         }
 
         .field:focus {
@@ -1068,6 +1069,18 @@
 
         let currentUser = null;
 
+        // 리다이렉트 로그인 결과 처리 (모바일용)
+        auth.getRedirectResult().then(result => {
+            if (result.user) {
+                showToast('구글 계정으로 연결되었습니다.', 'success');
+            }
+        }).catch(err => {
+            console.error('Redirect Auth Error:', err);
+            if (err.code !== 'auth/popup-closed-by-user') {
+                showToast('로그인 오류: ' + err.message, 'error');
+            }
+        });
+
         auth.onAuthStateChanged(user => {
             const authBtn = document.getElementById('auth-btn');
             if (dbUnsubscribe) { dbUnsubscribe(); dbUnsubscribe = null; }
@@ -1124,10 +1137,18 @@
         async function handleGoogleAuth() {
             try {
                 const provider = new firebase.auth.GoogleAuthProvider();
-                await auth.signInWithPopup(provider);
-                closeModal('auth-modal');
-                showToast('구글 계정으로 연결되었습니다.', 'success');
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                if (isMobile) {
+                    // 모바일에서는 팝업 대신 리다이렉트 사용 (2단계 인증 등 앱 전환 시 컨텍스트 유지 위함)
+                    await auth.signInWithRedirect(provider);
+                } else {
+                    await auth.signInWithPopup(provider);
+                    closeModal('auth-modal');
+                    showToast('구글 계정으로 연결되었습니다.', 'success');
+                }
             } catch (err) {
+                console.error('Google Auth Error:', err);
                 showToast('구글 인증 오류: ' + err.message, 'error');
             }
         }
