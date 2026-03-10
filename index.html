@@ -1073,21 +1073,22 @@
         auth.setPersistence(firebase.auth.Persistence.LOCAL).catch(err => console.error('Persistence error:', err));
 
         // 리다이렉트 로그인 결과 처리 (모바일용)
-        // 페이지 로드 직후 리다이렉트 여부를 확인하기 위해 약간의 지연을 주거나 즉시 호출
         auth.getRedirectResult().then(result => {
             if (result && result.user) {
-                showToast('구글 로그인에 성공했습니다!', 'success');
-                // result.user는 onAuthStateChanged에서 자동으로 currentUser로 세팅됨
-            } else if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
-                // 리다이렉트된 흔적은 있는데 결과가 없다면 처리 중임을 알림
-                showToast('인증 정보를 확인하는 중입니다...', 'info');
+                console.log('Redirect result found user:', result.user.email);
+                showToast('구글 로그인 성공!', 'success');
+            } else {
+                // 리다이렉트 결과가 없더라도 이미 로그인 상태일 수 있음 (onAuthStateChanged가 처리)
+                console.log('No redirect result found.');
             }
         }).catch(err => {
             console.error('Redirect Auth Error:', err);
+            // iOS PWA 등 특정 환경에서 발생하는 유실 에러 대응
             if (err.code === 'auth/account-exists-with-different-credential') {
                 showToast('이미 다른 방식으로 가입된 이메일입니다.', 'error', 5000);
-            } else if (err.code !== 'auth/popup-closed-by-user') {
-                showToast('로그인 실패: ' + err.message, 'error', 5000);
+            } else if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+                // 특정 에러 상황에서만 경고 (iOS PWA 세션 끊김 등)
+                console.warn('Redirect Auth Warning:', err.code);
             }
         });
 
@@ -1146,26 +1147,27 @@
 
         async function handleGoogleAuth() {
             try {
-                // Firebase 모듈 로드 확인 (iOS/모바일 브라우저 대응)
                 const authModule = firebase.auth;
                 if (!authModule || !authModule.GoogleAuthProvider) {
-                    console.error('Firebase Auth module not ready:', authModule);
-                    throw new Error('인증 모듈이 아직 준비되지 않았습니다. 잠시 후 타시 시도해주세요.');
+                    throw new Error('인증 모듈 로딩 중입니다. 잠시만 기다려주세요.');
                 }
 
                 const provider = new authModule.GoogleAuthProvider();
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
                 if (isMobile) {
+                    // 리다이렉트 전 모달을 닫아 세션 전환 시 방해 요소 제거
+                    closeModal('auth-modal');
                     await auth.signInWithRedirect(provider);
                 } else {
-                    await auth.signInWithPopup(provider);
-                    closeModal('auth-modal');
-                    showToast('구글 계정으로 연결되었습니다.', 'success');
+                    await auth.signInWithPopup(provider).then(() => {
+                        closeModal('auth-modal');
+                        showToast('구글 로그인 성공', 'success');
+                    });
                 }
             } catch (err) {
                 console.error('Google Auth Error:', err);
-                showToast('구글 인증 오류: ' + (err.message || '인증 모듈을 찾을 수 없습니다.'), 'error');
+                showToast('연결 오류: ' + (err.message || '인증 서버 응답 없음'), 'error');
             }
         }
 

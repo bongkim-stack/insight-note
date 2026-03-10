@@ -27,9 +27,16 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-    // API 호출이나 외부 링크는 캐싱하지 않음
-    if (event.request.url.includes('firebaseio.com') || event.request.url.includes('googleapis.com')) {
-        return;
+    const url = event.request.url;
+
+    // 1. Firebase Auth 및 소셜 로그인 관련 요청은 절대 캐싱하지 않고 네트워크로 직접 전달
+    if (
+        url.includes('firebaseapp.com/__/auth/') ||
+        url.includes('googleapis.com') ||
+        url.includes('firebaseio.com') ||
+        url.includes('accounts.google.com')
+    ) {
+        return; // 서비스 워커가 개입하지 않음 (네트워크로 직접 이동)
     }
 
     event.respondWith(
