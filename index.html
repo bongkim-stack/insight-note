@@ -763,7 +763,14 @@
                     <p class="text-[10px] text-slate-600 mt-0.5">Insight Note</p>
                 </div>
             </div>
-            <div class="relative">
+            <div class="relative flex items-center gap-1">
+                <button id="install-btn" class="hidden btn-icon text-emerald-400 hover:bg-emerald-500/10"
+                    aria-label="앱 설치">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </button>
                 <button id="menu-btn" onclick="toggleMenu()" class="btn-icon" aria-label="메뉴">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1015,6 +1022,26 @@
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(console.error);
         }
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // 크롬에서 자동으로 뜨는 미니 인포바 방지
+            e.preventDefault();
+            deferredPrompt = e;
+            // 설치 버튼 보이기
+            const installBtn = document.getElementById('install-btn');
+            if (installBtn) {
+                installBtn.classList.remove('hidden');
+                installBtn.onclick = async () => {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        installBtn.classList.add('hidden');
+                    }
+                    deferredPrompt = null;
+                };
+            }
+        });
 
         function handleShareTarget() {
             const params = new URLSearchParams(window.location.search);
