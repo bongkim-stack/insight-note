@@ -1263,7 +1263,13 @@
 
             } catch (err) {
                 console.error("데이터 로드 오류:", err);
-                showToast("데이터를 불러오지 못했습니다.", "error");
+                if (err.message && err.message.includes('Missing or insufficient permissions')) {
+                    showToast("Firestore DB 권한이 차단되어 있습니다. 규칙 설정을 확인해주세요.", "error", 6000);
+                } else if (err.message && err.message.includes('index')) {
+                    showToast("DB 색인(Index) 생성이 필요합니다. 개발자 도구 콘솔의 링크를 클릭하세요.", "error", 6000);
+                } else {
+                    showToast("데이터 로드 실패: " + err.message, "error", 6000);
+                }
             }
         }
 
