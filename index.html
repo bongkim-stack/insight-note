@@ -1069,20 +1069,22 @@
         let currentUser = null;
 
         auth.onAuthStateChanged(user => {
-            currentUser = user;
             const authBtn = document.getElementById('auth-btn');
+            if (dbUnsubscribe) { dbUnsubscribe(); dbUnsubscribe = null; }
+
             if (user) {
+                currentUser = user;
                 authBtn.textContent = '로그아웃';
                 authBtn.onclick = () => {
                     auth.signOut();
                     showToast('로그아웃 되었습니다.');
                 };
-                loadNotes(); // DB에서 내 노트 불러오기
             } else {
+                currentUser = null;
                 authBtn.textContent = '로그인';
                 authBtn.onclick = openAuthModal;
-                loadNotes();
             }
+            loadNotes();
         });
 
         function openAuthModal() {
@@ -1143,6 +1145,8 @@
         let editingId = null;       // 수정 중인 노트 ID
         let metaTimer = null;       // URL 디바운스 타이머
         let metaAbort = null;       // fetch AbortController
+        let dbUnsubscribe = null;   // Firestore 리스너 해제용
+        let isLoading = false;      // 데이터 로딩 상태
 
         // ═══════════════════════════════════════════════════
         //  PWA & SHARE TARGET
@@ -1204,28 +1208,39 @@
         //  DATABASE (FIRESTORE)
         // ═══════════════════════════════════════════════════
         async function loadNotes() {
+            if (dbUnsubscribe) { dbUnsubscribe(); dbUnsubscribe = null; }
+
             if (!currentUser) {
                 notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
                 collections = JSON.parse(localStorage.getItem(COL_STORAGE)) || [];
                 renderList();
                 renderCollectionTabs();
+                updateStats();
                 return;
             }
 
             try {
-                // 1. 컬렉션 데이터 로드
+                // 1. 컬렉션 (분류) 로드 (일회성)
                 const colSnap = await db.collection('users').doc(currentUser.uid).collection('categories').get();
                 collections = colSnap.docs.map(doc => doc.data());
 
-                // 2. 노트 데이터 로드 (최신순)
-                const noteSnap = await db.collection('users').doc(currentUser.uid).collection('notes')
-                    .orderBy('createdAt', 'desc').get();
-
-                notes = noteSnap.docs.map(doc => ({
-                    ...doc.data(),
-                    id: doc.id,
-                    collectionIds: doc.data().collectionIds || []
-                }));
+                // 2. 노트 데이터 실시간 리스너 연결
+                dbUnsubscribe = db.collection('users').doc(currentUser.uid).collection('notes')
+                    .orderBy('createdAt', 'desc')
+                    .onSnapshot((snapshot) => {
+                        notes = snapshot.docs.map(doc => ({
+                            ...doc.data(),
+                            id: doc.id,
+                            collectionIds: doc.data().collectionIds || []
+                        }));
+                        renderList();
+                        renderTagCloud();
+                        renderCollectionTabs();
+                        updateStats();
+                    }, (err) => {
+                        console.error('Snapshot Error:', err);
+                        showToast('데이터 동기화 실패', 'error');
+                    });
 
                 // 3. (마이그레이션) 로컬 데이터가 있으면 클라우드에 복사하고 로컬 데이터 삭제
                 const localNotes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
