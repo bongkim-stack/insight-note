@@ -1102,15 +1102,23 @@
             try {
                 // 임시로 로그인 시도 후 실패 시 가입 시도 로직
                 await auth.signInWithEmailAndPassword(email, password).catch(async (error) => {
-                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                        return await auth.createUserWithEmailAndPassword(email, password);
+                    // Firebase 최신 버전에서는 없는 이메일이거나 비번이 틀렸을 때 invalid-login-credentials 발생
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
+                        try {
+                            return await auth.createUserWithEmailAndPassword(email, password);
+                        } catch (signUpError) {
+                            if (signUpError.code === 'auth/email-already-in-use') {
+                                throw new Error('비밀번호가 틀렸습니다.');
+                            }
+                            throw signUpError;
+                        }
                     }
                     throw error;
                 });
                 closeModal('auth-modal');
                 showToast('클라우드에 연결되었습니다.', 'success');
             } catch (err) {
-                showToast('이메일 인증 오류: ' + err.message, 'error');
+                showToast('이메일 인증: ' + (err.message.includes('비밀번호') ? err.message : '이메일/비밀번호를 확인해주세요.'), 'error', 4000);
             }
         }
 
