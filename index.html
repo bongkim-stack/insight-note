@@ -1056,7 +1056,7 @@
         // ═══════════════════════════════════════════════════
         const firebaseConfig = {
             apiKey: "AIzaSyAEN18yrGDYfZogN8wKYyEjXu7EABPygJA",
-            authDomain: "insight-note-3b4f8.firebaseapp.com",
+            authDomain: "insight-note-3b4f8.web.app",
             projectId: "insight-note-3b4f8",
             storageBucket: "insight-note-3b4f8.firebasestorage.app",
             messagingSenderId: "244255266463",
@@ -1072,24 +1072,33 @@
         // 인증 지속성 설정 (명시적 LOCAL 설정)
         auth.setPersistence(firebase.auth.Persistence.LOCAL).catch(err => console.error('Persistence error:', err));
 
-        // 리다이렉트 로그인 결과 처리 (모바일용)
-        auth.getRedirectResult().then(result => {
-            if (result && result.user) {
-                console.log('Redirect result found user:', result.user.email);
-                showToast('구글 로그인 성공!', 'success');
-            } else {
-                // 리다이렉트 결과가 없더라도 이미 로그인 상태일 수 있음 (onAuthStateChanged가 처리)
-                console.log('No redirect result found.');
-            }
-        }).catch(err => {
-            console.error('Redirect Auth Error:', err);
-            // iOS PWA 등 특정 환경에서 발생하는 유실 에러 대응
-            if (err.code === 'auth/account-exists-with-different-credential') {
-                showToast('이미 다른 방식으로 가입된 이메일입니다.', 'error', 5000);
-            } else if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
-                // 특정 에러 상황에서만 경고 (iOS PWA 세션 끊김 등)
-                console.warn('Redirect Auth Warning:', err.code);
-            }
+        // 리다이렉트 로그인 결과 처리 (모바일/PWA 안정화)
+        function checkRedirectResult() {
+            auth.getRedirectResult().then(result => {
+                if (result && result.user) {
+                    console.log('Redirect result success:', result.user.email);
+                    showToast('구글 로그인 성공!', 'success');
+                } else if (auth.currentUser) {
+                    // 이미 로그인된 상태면 무시
+                    console.log('Already logged in.');
+                } else {
+                    console.log('No redirect result found.');
+                }
+            }).catch(err => {
+                console.error('Redirect Auth Error:', err);
+                if (err.code === 'auth/account-exists-with-different-credential') {
+                    showToast('이미 다른 방식으로 가입된 이메일입니다.', 'error', 5000);
+                } else if (err.code === 'auth/internal-error' || err.code === 'auth/network-request-failed') {
+                    showToast('인증 서버 연결 실패. 잠시 후 다시 시도해 주세요.', 'error');
+                } else if (err.message && err.message.includes('cookie')) {
+                    showToast('브라우저 설정에서 "크로스 사이트 추적 방지"를 해제하거나 Safari 브라우저를 사용해 주세요.', 'warning', 8000);
+                }
+            });
+        }
+
+        // 페이지 로드 후 Firebase 객체가 안정화될 때까지 약간 대기 후 결과 확인
+        window.addEventListener('load', () => {
+            setTimeout(checkRedirectResult, 500);
         });
 
         auth.onAuthStateChanged(user => {
@@ -1153,21 +1162,30 @@
                 }
 
                 const provider = new authModule.GoogleAuthProvider();
+                // 2단계 인증 등을 대비해 데이터 유실 방지 스코프 추가 (필요시)
+                provider.addScope('email');
+                provider.addScope('profile');
+
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
                 if (isMobile) {
-                    // 리다이렉트 전 모달을 닫아 세션 전환 시 방해 요소 제거
+                    showToast('구글 로그인 페이지로 이동합니다...', 'info');
                     closeModal('auth-modal');
-                    await auth.signInWithRedirect(provider);
+                    // 약간의 지연 후 리다이렉트 실행 (UI 업데이트 보장)
+                    setTimeout(() => auth.signInWithRedirect(provider), 500);
                 } else {
                     await auth.signInWithPopup(provider).then(() => {
                         closeModal('auth-modal');
-                        showToast('구글 로그인 성공', 'success');
+                        showToast('구글 계정 연결 성공!', 'success');
                     });
                 }
             } catch (err) {
                 console.error('Google Auth Error:', err);
-                showToast('연결 오류: ' + (err.message || '인증 서버 응답 없음'), 'error');
+                if (err.code === 'auth/popup-blocked') {
+                    showToast('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해 주세요.', 'error', 6000);
+                } else {
+                    showToast('로그인 오류: ' + (err.message || '인증 서버 응답 없음'), 'error');
+                }
             }
         }
 

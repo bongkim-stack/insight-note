@@ -34,7 +34,8 @@ self.addEventListener('fetch', event => {
         url.includes('firebaseapp.com/__/auth/') ||
         url.includes('googleapis.com') ||
         url.includes('firebaseio.com') ||
-        url.includes('accounts.google.com')
+        url.includes('accounts.google.com') ||
+        url.includes('web.app')
     ) {
         return; // 서비스 워커가 개입하지 않음 (네트워크로 직접 이동)
     }
