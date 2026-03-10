@@ -1232,25 +1232,29 @@
                 const localCols = JSON.parse(localStorage.getItem(COL_STORAGE)) || [];
 
                 if (localNotes.length > 0 || localCols.length > 0) {
-                    showToast('기존 로컬 데이터를 클라우드로 옮기는 중...', 'info');
+                    const shouldSync = confirm(`기기에 저장된 ${localNotes.length}개의 노트와 ${localCols.length}개의 컬렉션이 있습니다.\n클라우드(내 계정)로 동기화하시겠습니까?\n(취소 시 기기에만 남습니다)`);
 
-                    const batch = db.batch();
-                    const userRef = db.collection('users').doc(currentUser.uid);
+                    if (shouldSync) {
+                        showToast('로컬 데이터를 클라우드로 동기화하는 중...', 'info');
 
-                    for (const col of localCols) {
-                        batch.set(userRef.collection('categories').doc(col.id), col);
-                        if (!collections.find(c => c.id === col.id)) collections.push(col);
+                        const batch = db.batch();
+                        const userRef = db.collection('users').doc(currentUser.uid);
+
+                        for (const col of localCols) {
+                            batch.set(userRef.collection('categories').doc(col.id), col);
+                            if (!collections.find(c => c.id === col.id)) collections.push(col);
+                        }
+                        for (const note of localNotes) {
+                            const { id, ...noteData } = note;
+                            batch.set(userRef.collection('notes').doc(id), noteData);
+                            if (!notes.find(n => n.id === id)) notes.push({ id, ...noteData });
+                        }
+
+                        await batch.commit();
+                        localStorage.removeItem(STORAGE_KEY);
+                        localStorage.removeItem(COL_STORAGE);
+                        showToast('클라우드 동기화 완료!', 'success');
                     }
-                    for (const note of localNotes) {
-                        const { id, ...noteData } = note;
-                        batch.set(userRef.collection('notes').doc(id), noteData);
-                        if (!notes.find(n => n.id === id)) notes.push({ id, ...noteData });
-                    }
-
-                    await batch.commit();
-                    localStorage.removeItem(STORAGE_KEY);
-                    localStorage.removeItem(COL_STORAGE);
-                    showToast('데이터 마이그레이션 완료!', 'success');
                 }
 
                 renderList();
