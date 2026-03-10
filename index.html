@@ -1069,15 +1069,25 @@
 
         let currentUser = null;
 
+        // 인증 지속성 설정 (명시적 LOCAL 설정)
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => console.error('Persistence error:', err));
+
         // 리다이렉트 로그인 결과 처리 (모바일용)
+        // 페이지 로드 직후 리다이렉트 여부를 확인하기 위해 약간의 지연을 주거나 즉시 호출
         auth.getRedirectResult().then(result => {
-            if (result.user) {
-                showToast('구글 계정으로 연결되었습니다.', 'success');
+            if (result && result.user) {
+                showToast('구글 로그인에 성공했습니다!', 'success');
+                // result.user는 onAuthStateChanged에서 자동으로 currentUser로 세팅됨
+            } else if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
+                // 리다이렉트된 흔적은 있는데 결과가 없다면 처리 중임을 알림
+                showToast('인증 정보를 확인하는 중입니다...', 'info');
             }
         }).catch(err => {
             console.error('Redirect Auth Error:', err);
-            if (err.code !== 'auth/popup-closed-by-user') {
-                showToast('로그인 오류: ' + err.message, 'error');
+            if (err.code === 'auth/account-exists-with-different-credential') {
+                showToast('이미 다른 방식으로 가입된 이메일입니다.', 'error', 5000);
+            } else if (err.code !== 'auth/popup-closed-by-user') {
+                showToast('로그인 실패: ' + err.message, 'error', 5000);
             }
         });
 
