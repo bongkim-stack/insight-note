@@ -1208,8 +1208,8 @@
         // ═══════════════════════════════════════════════════
         async function loadNotes() {
             if (!currentUser) {
-                notes = [];
-                collections = [];
+                notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+                collections = JSON.parse(localStorage.getItem(COL_STORAGE)) || [];
                 renderList();
                 renderCollectionTabs();
                 return;
@@ -1274,23 +1274,47 @@
         }
 
         async function saveNoteToDB(note) {
-            if (!currentUser) return;
+            if (!currentUser) {
+                const localNotes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+                const idx = localNotes.findIndex(n => n.id === note.id);
+                if (idx !== -1) localNotes[idx] = note;
+                else localNotes.push(note);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(localNotes));
+                return;
+            }
             const { id, ...data } = note;
             await db.collection('users').doc(currentUser.uid).collection('notes').doc(id).set(data);
         }
 
         async function saveCollectionToDB(col) {
-            if (!currentUser) return;
+            if (!currentUser) {
+                const localCols = JSON.parse(localStorage.getItem(COL_STORAGE)) || [];
+                const idx = localCols.findIndex(c => c.id === col.id);
+                if (idx !== -1) localCols[idx] = col;
+                else localCols.push(col);
+                localStorage.setItem(COL_STORAGE, JSON.stringify(localCols));
+                return;
+            }
             await db.collection('users').doc(currentUser.uid).collection('categories').doc(col.id).set(col);
         }
 
         async function deleteNoteFromDB(id) {
-            if (!currentUser) return;
+            if (!currentUser) {
+                let localNotes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+                localNotes = localNotes.filter(n => n.id !== id);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(localNotes));
+                return;
+            }
             await db.collection('users').doc(currentUser.uid).collection('notes').doc(id).delete();
         }
 
         async function deleteCollectionFromDB(id) {
-            if (!currentUser) return;
+            if (!currentUser) {
+                let localCols = JSON.parse(localStorage.getItem(COL_STORAGE)) || [];
+                localCols = localCols.filter(c => c.id !== id);
+                localStorage.setItem(COL_STORAGE, JSON.stringify(localCols));
+                return;
+            }
             await db.collection('users').doc(currentUser.uid).collection('categories').doc(id).delete();
         }
 
