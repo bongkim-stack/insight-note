@@ -1070,7 +1070,7 @@
         let currentUser = null;
 
         // 인증 지속성 설정 (명시적 LOCAL 설정)
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => console.error('Persistence error:', err));
+        auth.setPersistence(firebase.auth.Persistence.LOCAL).catch(err => console.error('Persistence error:', err));
 
         // 리다이렉트 로그인 결과 처리 (모바일용)
         // 페이지 로드 직후 리다이렉트 여부를 확인하기 위해 약간의 지연을 주거나 즉시 호출
@@ -1146,11 +1146,17 @@
 
         async function handleGoogleAuth() {
             try {
-                const provider = new firebase.auth.GoogleAuthProvider();
+                // Firebase 모듈 로드 확인 (iOS/모바일 브라우저 대응)
+                const authModule = firebase.auth;
+                if (!authModule || !authModule.GoogleAuthProvider) {
+                    console.error('Firebase Auth module not ready:', authModule);
+                    throw new Error('인증 모듈이 아직 준비되지 않았습니다. 잠시 후 타시 시도해주세요.');
+                }
+
+                const provider = new authModule.GoogleAuthProvider();
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
                 if (isMobile) {
-                    // 모바일에서는 팝업 대신 리다이렉트 사용 (2단계 인증 등 앱 전환 시 컨텍스트 유지 위함)
                     await auth.signInWithRedirect(provider);
                 } else {
                     await auth.signInWithPopup(provider);
@@ -1159,7 +1165,7 @@
                 }
             } catch (err) {
                 console.error('Google Auth Error:', err);
-                showToast('구글 인증 오류: ' + err.message, 'error');
+                showToast('구글 인증 오류: ' + (err.message || '인증 모듈을 찾을 수 없습니다.'), 'error');
             }
         }
 
