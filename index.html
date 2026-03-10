@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>인사이트 노트</title>
+    <meta name="description" content="URL과 인사이트를 기록하고 관리하는 개인 지식 관리 도구" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d0d1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>">
+    <link rel="apple-touch-icon" href="icon.svg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        * {
+            font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, sans-serif;
+        }
+
+        :root {
+            --bg: #0d0d1a;
+            --surface: #161628;
+            --surface2: #1e1e38;
+            --border: #2a2a4a;
+            --primary: #6366f1;
+            --accent: #8b5cf6;
+            --text: #e2e8f0;
+            --muted: #64748b;
+        }
+
+        html {
+            background: var(--bg);
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100dvh;
+            overscroll-behavior: none;
+        }
+
+        /* ── 스크롤바 ── */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        /* ── 공통 컴포넌트 ── */
+        .glass {
+            background: rgba(22, 22, 40, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #818cf8, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ── 인풋 ── */
+        .field {
+            width: 100%;
+            background: rgba(13, 13, 26, 0.8);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color .2s, box-shadow .2s;
+            -webkit-appearance: none;
+        }
+
+        .field:focus {
+            border-color: rgba(99, 102, 241, .7);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
+        }
+
+        .field::placeholder {
+            color: #3a3a5c;
+        }
+
+        textarea.field {
+            resize: none;
+        }
+
+        /* ── 버튼 ── */
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 13px 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: opacity .2s, transform .15s, box-shadow .2s;
+            white-space: nowrap;
+            width: 100%;
+        }
+
+        .btn-primary:active {
+            transform: scale(.97);
+        }
+
+        .btn-primary:hover {
+            opacity: .9;
+            box-shadow: 0 8px 20px -6px rgba(99, 102, 241, .5);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .2s;
+            white-space: nowrap;
+            width: 100%;
+        }
+
+        .btn-ghost:hover {
+            border-color: rgba(99, 102, 241, .5);
+            color: var(--text);
+        }
+
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 10px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .btn-icon:hover {
+            background: rgba(99, 102, 241, .12);
+            border-color: rgba(99, 102, 241, .4);
+            color: var(--text);
+        }
+
+        /* ── 태그 배지 ── */
+        .tag-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .18s;
+            background: rgba(99, 102, 241, .1);
+            border: 1px solid rgba(99, 102, 241, .25);
+            color: #a5b4fc;
+            flex-shrink: 0;
+        }
+
+        .tag-pill:hover,
+        .tag-pill.active {
+            background: rgba(99, 102, 241, .28);
+            border-color: rgba(99, 102, 241, .6);
+            color: #e0e7ff;
+        }
+
+        /* ── 카드 ── */
+        .note-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px;
+            display: flex;
+            flex-direction: row;
+            gap: 14px;
+            align-items: stretch;
+            transition: border-color .25s, box-shadow .25s, transform .25s;
+        }
+
+        .note-card:hover {
+            border-color: rgba(99, 102, 241, .45);
+            box-shadow: 0 8px 28px -8px rgba(99, 102, 241, .2);
+            transform: translateY(-1px);
+        }
+
+        .note-card.draft {
+            border-color: rgba(251, 191, 36, .22);
+        }
+
+        .note-card.draft:hover {
+            border-color: rgba(251, 191, 36, .45);
+            box-shadow: 0 8px 28px -8px rgba(251, 191, 36, .15);
+        }
+
+        /* ── Draft 배지 ── */
+        .draft-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            background: rgba(251, 191, 36, .1);
+            border: 1px solid rgba(251, 191, 36, .3);
+            color: #fbbf24;
+            letter-spacing: .01em;
+            cursor: pointer;
+            transition: background .18s, border-color .18s;
+        }
+
+        .draft-badge:hover {
+            background: rgba(251, 191, 36, .22);
+            border-color: rgba(251, 191, 36, .55);
+        }
+
+        /* ── 썸네일 ── */
+        .thumb-wrap {
+            border-radius: 12px;
+            overflow: hidden;
+            width: 100px;
+            height: 100px;
+            background: var(--surface2);
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+        }
+
+        .thumb-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* ── FAB ── */
+        #fab {
+            position: fixed;
+            bottom: 24px;
+            right: 20px;
+            z-index: 60;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px -4px rgba(99, 102, 241, .6);
+            transition: transform .2s, box-shadow .2s;
+        }
+
+        #fab:hover {
+            transform: scale(1.08);
+        }
+
+        #fab:active {
+            transform: scale(.94);
+        }
+
+        #fab svg {
+            transition: transform .25s cubic-bezier(.34, 1.56, .64, 1);
+        }
+
+        #fab.open svg {
+            transform: rotate(45deg);
+        }
+
+        /* ── 슬라이드업 패널 ── */
+        #panel-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            background: rgba(0, 0, 0, .6);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .3s;
+        }
+
+        #panel-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        #input-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 55;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-radius: 24px 24px 0 0;
+            padding: 0 16px 32px;
+            transform: translateY(100%);
+            transition: transform .35s cubic-bezier(.32, 0, .67, 0);
+            max-height: 90dvh;
+            overflow-y: auto;
+        }
+
+        #input-panel.show {
+            transform: translateY(0);
+            transition: transform .35s cubic-bezier(.33, 1, .68, 1);
+        }
+
+        .panel-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin: 12px auto 20px;
+        }
+
+        /* ── 헤더 메뉴 ── */
+        #menu-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 6px;
+            z-index: 100;
+            min-width: 180px;
+            box-shadow: 0 16px 40px -8px rgba(0, 0, 0, .6);
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(.95) translateY(-6px);
+            transform-origin: top right;
+            transition: all .18s cubic-bezier(.34, 1.56, .64, 1);
+        }
+
+        #menu-dropdown.show {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1) translateY(0);
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all .15s;
+            width: 100%;
+            background: none;
+            border: none;
+            text-align: left;
+        }
+
+        .menu-item:hover {
+            background: rgba(99, 102, 241, .1);
+            color: var(--text);
+        }
+
+        /* ── 태그 스크롤 ── */
+        .tag-scroll {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+        }
+
+        .tag-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* ── 통계 ── */
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+        }
+
+        /* ── 검색 ── */
+        .search-wrap {
+            position: relative;
+        }
+
+        .search-wrap .field {
+            padding-left: 38px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            pointer-events: none;
+        }
+
+        /* ── 로딩 스피너 ── */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, .2);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── 토스트 ── */
+        #toast {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%) translateY(16px);
+            z-index: 200;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: all .3s cubic-bezier(.34, 1.56, .64, 1);
+            max-width: calc(100vw - 32px);
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #toast.success {
+            background: #10b981;
+            color: #fff;
+            box-shadow: 0 8px 24px -4px rgba(16, 185, 129, .45);
+        }
+
+        #toast.error {
+            background: #ef4444;
+            color: #fff;
+            box-shadow: 0 8px 24px -4px rgba(239, 68, 68, .45);
+        }
+
+        #toast.info {
+            background: #6366f1;
+            color: #fff;
+            box-shadow: 0 8px 24px -4px rgba(99, 102, 241, .45);
+        }
+
+        /* ── 애니메이션 ── */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-up {
+            animation: fadeUp .28s ease both;
+        }
+
+        /* ── 수정 모드 하이라이트 ── */
+        #input-panel.edit-mode {
+            border-top-color: rgba(99, 102, 241, .6);
+        }
+
+        .edit-indicator {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #818cf8;
+            background: rgba(99, 102, 241, .1);
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin-bottom: 12px;
+        }
+
+        #input-panel.edit-mode .edit-indicator {
+            display: flex;
+        }
+
+        /* 검색 하이라이트 */
+        mark {
+            background: rgba(99, 102, 241, .28);
+            color: inherit;
+            border-radius: 3px;
+            padding: 0 1px;
+        }
+
+        label.form-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        /* 메타 로딩 상태 */
+        #meta-preview {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(13, 13, 26, .8);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        #meta-preview.show {
+            display: flex;
+        }
+
+        #meta-preview img {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        /* ── AI 태그 관련 ── */
+        .ai-tag-suggestion {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .18s;
+            background: rgba(139, 92, 246, .1);
+            border: 1px dashed rgba(139, 92, 246, .4);
+            color: #c4b5fd;
+        }
+
+        .ai-tag-suggestion:hover {
+            background: rgba(139, 92, 246, .25);
+            border-color: rgba(139, 92, 246, .7);
+            color: #e9d5ff;
+        }
+
+        .btn-ai {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            background: rgba(139, 92, 246, .12);
+            border: 1px solid rgba(139, 92, 246, .35);
+            color: #c4b5fd;
+            white-space: nowrap;
+        }
+
+        .btn-ai:hover:not(:disabled) {
+            background: rgba(139, 92, 246, .25);
+            border-color: rgba(139, 92, 246, .6);
+            color: #e9d5ff;
+        }
+
+        .btn-ai:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        /* ── 컬렉션 탭 ── */
+        .collection-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--muted);
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all .2s;
+            white-space: nowrap;
+        }
+
+        .collection-tab:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, .08);
+        }
+
+        .collection-tab.active {
+            background: var(--text);
+            color: var(--bg);
+            border-color: var(--text);
+        }
+
+        .collection-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: none;
+        }
+
+        .collection-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 체크박스 커스텀 (.checkbox-item) */
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all .2s;
+            user-select: none;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(99, 102, 241, .1);
+            border-color: rgba(99, 102, 241, .3);
+        }
+
+        .checkbox-item input:checked+.checkbox-label {
+            color: #818cf8;
+            font-weight: 600;
+        }
+
+        /* 모달 공통 */
+        .modal {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0, 0, 0, .7);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .25s;
+        }
+
+        .modal.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-box {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            transform: scale(.95);
+            transition: transform .25s cubic-bezier(.34, 1.56, .64, 1);
+        }
+
+        .modal.show .modal-box {
+            transform: scale(1);
+        }
+
+        @media (min-width: 640px) {
+            #input-panel {
+                max-width: 560px;
+                left: 50%;
+                right: auto;
+                transform: translateX(-50%) translateY(100%);
+                border-radius: 24px 24px 0 0;
+            }
+
+            #input-panel.show {
+                transform: translateX(-50%) translateY(0);
+            }
+
+            .note-card {
+                padding: 16px;
+                gap: 16px;
+            }
+
+            .thumb-wrap {
+                width: 120px;
+                height: 120px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ══════════════ HEADER ══════════════ -->
+    <header class="glass sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div
+                    class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg flex-shrink-0">
+                    <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-bold gradient-text leading-none">인사이트 노트</p>
+                    <p class="text-[10px] text-slate-600 mt-0.5">Insight Note</p>
+                </div>
+            </div>
+            <div class="relative">
+                <button id="menu-btn" onclick="toggleMenu()" class="btn-icon" aria-label="메뉴">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                </button>
+                <div id="menu-dropdown">
+                    <button class="menu-item" onclick="openCollectionManager(); closeMenu()">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                        컬렉션 관리
+                    </button>
+                    <button class="menu-item" onclick="exportJSON(); closeMenu()">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        JSON 내보내기
+                    </button>
+                    <label class="menu-item cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+                        </svg>
+                        JSON 불러오기
+                        <input type="file" accept=".json" class="hidden" onchange="importJSON(event); closeMenu()" />
+                    </label>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 pb-28 pt-4 space-y-4">
+
+        <!-- ══ 통계 ══ -->
+        <div class="grid grid-cols-4 gap-2">
+            <div class="stat-card text-center">
+                <p class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">전체</p>
+                <p class="text-xl font-bold text-indigo-400 mt-0.5" id="stat-total">0</p>
+            </div>
+            <div class="stat-card text-center">
+                <p class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">태그</p>
+                <p class="text-xl font-bold text-purple-400 mt-0.5" id="stat-tags">0</p>
+            </div>
+            <div class="stat-card text-center">
+                <p class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">이번주</p>
+                <p class="text-xl font-bold text-pink-400 mt-0.5" id="stat-week">0</p>
+            </div>
+            <div class="stat-card text-center">
+                <p class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">오늘</p>
+                <p class="text-xl font-bold text-emerald-400 mt-0.5" id="stat-today">0</p>
+            </div>
+        </div>
+
+        <!-- ══ 컬렉션 탭 ══ -->
+        <div id="collection-tabs" class="collection-scroll"></div>
+
+        <!-- ══ 태그 클라우드 ══ -->
+        <div id="tag-cloud-wrap" class="hidden bg-white/5 rounded-xl p-3 border border-white/5">
+            <div class="flex items-center gap-2 mb-2">
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">분류 태그</p>
+                <button id="clear-filter-btn" onclick="clearFilter()"
+                    class="hidden text-[11px] text-indigo-400 underline underline-offset-2">선택 해제</button>
+            </div>
+            <div id="tag-cloud" class="tag-scroll"></div>
+        </div>
+
+        <!-- ══ 검색 + 정렬 ══ -->
+        <div class="flex gap-2">
+            <div class="search-wrap flex-1">
+                <span class="search-icon">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </span>
+                <input id="search-input" type="search" class="field text-sm" placeholder="검색..."
+                    oninput="renderList()" />
+            </div>
+            <select id="sort-select" class="field text-sm" style="width:auto" onchange="renderList()">
+                <option value="newest">최신순</option>
+                <option value="oldest">오래된순</option>
+                <option value="draft">미작성 우선</option>
+            </select>
+        </div>
+
+        <!-- ══ 노트 리스트 ══ -->
+        <div id="note-list" class="grid gap-3 grid-cols-1 lg:grid-cols-2"></div>
+        <div id="empty-state" class="hidden py-16 text-center text-slate-700">
+            <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            <p class="font-semibold opacity-40">저장된 노트가 없습니다</p>
+            <p class="text-sm mt-1 opacity-25">+ 버튼을 눌러 첫 인사이트를 추가하세요</p>
+        </div>
+
+    </main>
+
+    <!-- ══════════════ FAB ══════════════ -->
+    <button id="fab" onclick="openPanel()" aria-label="새 노트 추가">
+        <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+        </svg>
+    </button>
+
+    <!-- ══════════════ 오버레이 ══════════════ -->
+    <div id="panel-overlay" onclick="closePanel()"></div>
+
+    <!-- ══════════════ 슬라이드업 패널 ══════════════ -->
+    <div id="input-panel" role="dialog" aria-modal="true" aria-label="노트 입력">
+        <div class="panel-handle"></div>
+
+        <!-- 수정 모드 표시 -->
+        <div class="edit-indicator">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span id="edit-label">노트 수정 중</span>
+        </div>
+
+        <form id="note-form" onsubmit="handleSubmit(event)" novalidate>
+
+            <!-- URL -->
+            <div class="mb-3">
+                <label class="form-label" for="url-input">콘텐츠 URL <span class="text-red-400">*</span></label>
+                <input id="url-input" type="url" class="field" placeholder="https://example.com/article"
+                    oninput="onUrlInput()" />
+            </div>
+
+            <!-- 메타 미리보기 -->
+            <div id="meta-preview" class="mb-3">
+                <span id="meta-spinner" class="spinner flex-shrink-0"></span>
+                <img id="meta-img" src="" alt="" class="hidden" onerror="this.classList.add('hidden')" />
+                <div class="min-w-0">
+                    <p id="meta-title" class="font-semibold text-slate-300 truncate"></p>
+                    <p id="meta-site" class="text-slate-500 text-[11px] truncate"></p>
+                </div>
+            </div>
+
+            <!-- 인사이트 내용 -->
+            <div class="mb-3">
+                <label class="form-label" for="content-input">인사이트 내용 <span
+                        class="text-slate-600 normal-case font-normal text-[11px]">(선택)</span></label>
+                <textarea id="content-input" rows="4" class="field" placeholder="핵심 아이디어, 나만의 생각을 기록하세요..."></textarea>
+            </div>
+
+            <!-- 컬렉션 -->
+            <div class="mb-3" id="collection-select-wrap" style="display:none;">
+                <label class="form-label">컬렉션</label>
+                <div id="collection-checkboxes" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- 태그 -->
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="form-label mb-0" for="tags-input">태그 <span
+                            class="text-slate-600 normal-case font-normal text-[11px]">(콤마로 구분)</span></label>
+                    <button type="button" id="ai-tag-btn" onclick="suggestTagsWithAI()" class="btn-ai">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        AI 태그 추천
+                    </button>
+                </div>
+                <input id="tags-input" type="text" class="field" placeholder="AI, 트렌드, 마케팅" />
+                <!-- AI 추천 태그 표시 영역 -->
+                <div id="ai-tag-suggestions" class="hidden mt-2 flex flex-wrap gap-1.5"></div>
+            </div>
+
+            <!-- 버튼 -->
+            <div id="form-buttons" class="flex flex-col gap-2">
+                <button type="submit" id="submit-btn" class="btn-primary">
+                    저장하기
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ══════════════ API 키 설정 모달 ══════════════ -->
+    <div id="api-key-modal" class="modal">
+        <div class="modal-box" id="api-key-modal-box">
+            <div class="flex items-center gap-2 mb-4">
+                <div class="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                </div>
+                <h3 class="text-sm font-bold text-slate-200">Groq API 키 설정</h3>
+            </div>
+            <p class="text-xs text-slate-500 mb-4 leading-relaxed">AI 태그 추천 기능을 사용하려면 Groq API 키가 필요합니다. API 키는
+                이 기기에만 저장되며 외부로 전송되지 않습니다.</p>
+            <p class="text-xs text-slate-600 mb-3">👉 <a href="https://console.groq.com/keys" target="_blank"
+                    class="text-purple-400 underline underline-offset-2">console.groq.com</a>에서 무료로 발급받을 수 있습니다. (카드
+                불필요)</p>
+            <input id="api-key-input" type="password" class="field mb-3" placeholder="sk_..." autocomplete="off" />
+            <div class="flex gap-2">
+                <button onclick="saveApiKey()" class="btn-primary"
+                    style="padding:10px 16px;font-size:0.82rem;">저장하기</button>
+                <button onclick="closeModal('api-key-modal')" class="btn-ghost"
+                    style="padding:10px 16px;font-size:0.82rem;">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════ 컬렉션 관리 모달 ══════════════ -->
+    <div id="collection-modal" class="modal">
+        <div class="modal-box">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-bold text-slate-200">컬렉션 관리</h3>
+                <button onclick="closeModal('collection-modal')" class="text-slate-500 hover:text-white">✕</button>
+            </div>
+
+            <div class="flex gap-2 mb-4">
+                <input id="new-col-name" type="text" class="field flex-1" placeholder="새 컬렉션 이름..." />
+                <button onclick="addCollection()" class="btn-primary w-auto">추가</button>
+            </div>
+
+            <div id="collection-manager-list" class="space-y-2 max-h-[300px] overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- ══════════════ 토스트 ══════════════ -->
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        // ═══════════════════════════════════════════════════
+        //  STATE
+        // ═══════════════════════════════════════════════════
+        const STORAGE_KEY = 'insight_notes_v1';
+        const COL_STORAGE = 'insight_cols_v1';
+        const API_KEY_STORAGE = 'insight_groq_api_key';
+        let notes = [];
+        let collections = [];
+        let activeTag = null;
+        let activeCollection = 'all'; // 'all', 'uncategorized', or collection id
+        let editingId = null;       // 수정 중인 노트 ID
+        let metaTimer = null;       // URL 디바운스 타이머
+        let metaAbort = null;       // fetch AbortController
+
+        // ═══════════════════════════════════════════════════
+        //  PWA & SHARE TARGET
+        // ═══════════════════════════════════════════════════
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(console.error);
+        }
+
+        function handleShareTarget() {
+            const params = new URLSearchParams(window.location.search);
+            const sharedTitle = params.get('title') || '';
+            const sharedText = params.get('text') || '';
+            const sharedUrl = params.get('url') || '';
+
+            // 텍스트나 URL 형태로 넘어온 링크 추출
+            // (안드로이드/iOS 특성상 url 파라미터 대신 text에 URL이 포함되어 올 수도 있음)
+            let extractedUrl = sharedUrl;
+            if (!extractedUrl && sharedText) {
+                const urlMatch = sharedText.match(/https?:\/\/[^\s]+/);
+                if (urlMatch) extractedUrl = urlMatch[0];
+            }
+
+            if (extractedUrl || sharedText || sharedTitle) {
+                document.getElementById('url-input').value = extractedUrl;
+                // URL이 text에 포함되어 추출된 경우 남은 텍스트를 내용에 저장
+                const remainingText = sharedText.replace(extractedUrl, '').trim();
+                const content = [sharedTitle, remainingText].filter(Boolean).join('\n');
+                document.getElementById('content-input').value = content;
+
+                openPanel();
+                if (extractedUrl) onUrlInput();
+
+                // 파라미터 제거 (뒤로가기 시 다시 열리지 않도록)
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  STORAGE
+        // ═══════════════════════════════════════════════════
+        function loadNotes() {
+            try {
+                notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+                notes = notes.map(n => ({ ...n, collectionIds: n.collectionIds || [] }));
+            }
+            catch { notes = []; }
+            try { collections = JSON.parse(localStorage.getItem(COL_STORAGE)) || []; }
+            catch { collections = []; }
+        }
+        function saveNotes() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+            localStorage.setItem(COL_STORAGE, JSON.stringify(collections));
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  UTILS
+        // ═══════════════════════════════════════════════════
+        function genId() {
+            return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        }
+        function formatDate(iso) {
+            return new Date(iso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+        }
+        function getDomain(url) {
+            try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
+        }
+        function esc(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        function hl(text, q) {
+            if (!q) return esc(text);
+            const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            return esc(text).replace(re, m => `<mark>${m}</mark>`);
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  TOAST
+        // ═══════════════════════════════════════════════════
+        function showToast(msg, type = 'info', duration = 3000) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = `toast show ${type}`;
+            clearTimeout(el._t);
+            el._t = setTimeout(() => el.classList.remove('show'), duration);
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  STATS
+        // ═══════════════════════════════════════════════════
+        function updateStats() {
+            const now = new Date();
+            const today = now.toDateString();
+            const weekAgo = new Date(now - 7 * 864e5);
+            const allTags = new Set(notes.flatMap(n => n.tags));
+            document.getElementById('stat-total').textContent = notes.length;
+            document.getElementById('stat-tags').textContent = allTags.size;
+            document.getElementById('stat-today').textContent = notes.filter(n => new Date(n.createdAt).toDateString() === today).length;
+            document.getElementById('stat-week').textContent = notes.filter(n => new Date(n.createdAt) >= weekAgo).length;
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  COLLECTIONS
+        // ═══════════════════════════════════════════════════
+        function renderCollectionTabs() {
+            const tabsEl = document.getElementById('collection-tabs');
+            let tabsHtml = `<button onclick="filterByCollection('all')" class="collection-tab ${activeCollection === 'all' ? 'active' : ''}">전체 <span class="opacity-50 text-[10px] ml-1">${notes.length}</span></button>`;
+
+            tabsHtml += collections.map(col => {
+                const count = notes.filter(n => n.collectionIds && n.collectionIds.includes(col.id)).length;
+                return `<button onclick="filterByCollection('${col.id}')" class="collection-tab ${activeCollection === col.id ? 'active' : ''}">${esc(col.name)} <span class="opacity-50 text-[10px] ml-1">${count}</span></button>`;
+            }).join('');
+
+            const uncatCount = notes.filter(n => !n.collectionIds || n.collectionIds.length === 0).length;
+            if (uncatCount > 0) {
+                tabsHtml += `<button onclick="filterByCollection('uncategorized')" class="collection-tab ${activeCollection === 'uncategorized' ? 'active' : ''}">미분류 <span class="opacity-50 text-[10px] ml-1">${uncatCount}</span></button>`;
+            }
+
+            tabsEl.innerHTML = tabsHtml;
+        }
+
+        function filterByCollection(id) {
+            activeCollection = id;
+            activeTag = null; // 컬렉션 변경 시 태그 초기화
+            renderCollectionTabs();
+            renderTagCloud();
+            renderList();
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  TAG CLOUD
+        // ═══════════════════════════════════════════════════
+        function renderTagCloud() {
+            const freq = {};
+            notes.forEach(n => n.tags.forEach(t => { freq[t] = (freq[t] || 0) + 1; }));
+            const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+            const wrap = document.getElementById('tag-cloud-wrap');
+            if (!sorted.length) { wrap.classList.add('hidden'); return; }
+            wrap.classList.remove('hidden');
+            document.getElementById('tag-cloud').innerHTML = sorted.map(([tag, cnt]) =>
+                `<button onclick="filterByTag('${esc(tag)}')" class="tag-pill ${activeTag === tag ? 'active' : ''}">${esc(tag)} <span class="opacity-50">${cnt}</span></button>`
+            ).join('');
+            document.getElementById('clear-filter-btn').classList.toggle('hidden', !activeTag);
+        }
+        function filterByTag(tag) {
+            activeTag = activeTag === tag ? null : tag;
+            renderTagCloud();
+            renderList();
+        }
+        function clearFilter() {
+            activeTag = null;
+            renderTagCloud();
+            renderList();
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  LIST
+        // ═══════════════════════════════════════════════════
+        function renderList() {
+            const q = (document.getElementById('search-input').value || '').trim().toLowerCase();
+            const sort = document.getElementById('sort-select').value;
+
+            let list = [...notes];
+
+            if (activeCollection === 'uncategorized') {
+                list = list.filter(n => !n.collectionIds || n.collectionIds.length === 0);
+            } else if (activeCollection !== 'all') {
+                list = list.filter(n => n.collectionIds && n.collectionIds.includes(activeCollection));
+            }
+
+            if (activeTag) list = list.filter(n => n.tags.includes(activeTag));
+            if (q) list = list.filter(n =>
+                n.url.toLowerCase().includes(q) ||
+                n.content.toLowerCase().includes(q) ||
+                n.tags.some(t => t.toLowerCase().includes(q)) ||
+                (n.metadata?.title || '').toLowerCase().includes(q)
+            );
+
+            if (sort === 'newest') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            else if (sort === 'oldest') list.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            else if (sort === 'draft') list.sort((a, b) => {
+                const ad = !a.content, bd = !b.content;
+                if (ad !== bd) return ad ? -1 : 1;
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+
+            const listEl = document.getElementById('note-list');
+            const emptyEl = document.getElementById('empty-state');
+
+            if (!list.length) { listEl.innerHTML = ''; emptyEl.classList.remove('hidden'); return; }
+            emptyEl.classList.add('hidden');
+            listEl.innerHTML = list.map((n, i) => buildCard(n, q, i)).join('');
+        }
+
+        function buildCard(note, q = '', idx = 0) {
+            const isDraft = !note.content;
+            const domain = getDomain(note.url);
+            const favicon = domain ? `https://www.google.com/s2/favicons?sz=32&domain=${domain}` : '';
+            const title = note.metadata?.title || '';
+            const thumb = note.metadata?.thumbnail || '';
+            const siteName = note.metadata?.siteName || domain;
+
+            const thumbHtml = thumb
+                ? `<div class="thumb-wrap"><img src="${esc(thumb)}" alt="" loading="lazy" onerror="this.parentElement.remove()" /></div>`
+                : '';
+
+            const draftBadge = isDraft
+                ? `<button type="button" class="draft-badge" onclick="startEdit('${note.id}')" title="클릭하여 인사이트 작성">✏️ 인사이트 미작성</button>`
+                : '';
+
+            const titleRow = title
+                ? `<p class="text-sm font-semibold text-slate-200 leading-snug line-clamp-2">${hl(title, q)}</p>`
+                : '';
+
+            const urlRow = note.url
+                ? `<a href="${esc(note.url)}" target="_blank" rel="noopener noreferrer"
+           class="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 truncate transition-colors">
+         ${favicon ? `<img src="${favicon}" alt="" class="w-3.5 h-3.5 rounded-sm flex-shrink-0" onerror="this.remove()" />` : ''}
+         <span class="truncate">${esc(siteName)}</span>
+         <svg class="w-3 h-3 flex-shrink-0 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+       </a>`
+                : '';
+
+            const contentHtml = note.content
+                ? `<p class="text-sm text-slate-400 leading-relaxed line-clamp-4 whitespace-pre-wrap">${hl(note.content, q)}</p>`
+                : '';
+
+            const tagsHtml = note.tags.length
+                ? `<div class="flex flex-wrap gap-1">${note.tags.map(t => `<span class="tag-pill text-[11px]" onclick="filterByTag('${esc(t)}')">${esc(t)}</span>`).join('')}</div>`
+                : '';
+
+            return `
+    <article class="note-card ${isDraft ? 'draft' : ''} fade-up" style="animation-delay:${idx * 30}ms" id="card-${note.id}">
+      ${thumbHtml}
+      <div class="flex-1 min-w-0 flex flex-col h-full">
+        <div class="space-y-1 mb-2">
+          ${draftBadge}
+          ${titleRow}
+          ${urlRow}
+        </div>
+        ${contentHtml ? `<div class="mb-2">${contentHtml}</div>` : ''}
+        ${tagsHtml ? `<div class="mt-auto mb-2">${tagsHtml}</div>` : '<div class="mt-auto"></div>'}
+        <div class="flex items-center justify-between mt-auto pt-2 border-t border-white/5">
+          <time class="text-[11px] text-slate-600">${formatDate(note.createdAt)}</time>
+          <div class="flex items-center gap-1">
+            <button onclick="startEdit('${note.id}')"
+              class="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors px-2 py-1 rounded hover:bg-indigo-500/10">
+              편집
+            </button>
+            <button onclick="deleteNote('${note.id}')"
+              class="text-[11px] font-semibold text-slate-500 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-500/10">
+              삭제
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>`;
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  LINKMETA API
+        // ═══════════════════════════════════════════════════
+        async function fetchMetadata(url) {
+            if (metaAbort) metaAbort.abort();
+            metaAbort = new AbortController();
+
+            const preview = document.getElementById('meta-preview');
+            const spinner = document.getElementById('meta-spinner');
+            const metaImg = document.getElementById('meta-img');
+            const metaTitle = document.getElementById('meta-title');
+            const metaSite = document.getElementById('meta-site');
+
+            preview.classList.add('show');
+            spinner.style.display = 'inline-block';
+            metaImg.classList.add('hidden');
+            metaTitle.textContent = 'URL 정보를 가져오는 중...';
+            metaSite.textContent = '';
+
+            try {
+                const res = await fetch(
+                    `https://linkmeta.dev/api/v1/extract?url=${encodeURIComponent(url)}&fields=title,image,siteName,description`,
+                    { signal: metaAbort.signal }
+                );
+                if (!res.ok) throw new Error('API 오류');
+                const { data } = await res.json();
+
+                spinner.style.display = 'none';
+                metaTitle.textContent = data.title || url;
+                metaSite.textContent = data.siteName || getDomain(url);
+
+                if (data.image) {
+                    metaImg.src = data.image;
+                    metaImg.classList.remove('hidden');
+                }
+
+                return {
+                    title: data.title || null,
+                    thumbnail: data.image || null,
+                    siteName: data.siteName || null,
+                };
+            } catch (e) {
+                if (e.name === 'AbortError') return null;
+                spinner.style.display = 'none';
+                metaTitle.textContent = getDomain(url);
+                metaSite.textContent = '메타데이터를 불러올 수 없습니다';
+                return { title: null, thumbnail: null, siteName: null };
+            }
+        }
+
+        // ─── URL 입력 디바운스 ───────────────────────────
+        function onUrlInput() {
+            clearTimeout(metaTimer);
+            const url = document.getElementById('url-input').value.trim();
+            const preview = document.getElementById('meta-preview');
+            if (!url || !url.startsWith('http')) {
+                preview.classList.remove('show');
+                if (metaAbort) metaAbort.abort();
+                return;
+            }
+            metaTimer = setTimeout(() => {
+                try { new URL(url); fetchMetadata(url); } catch { }
+            }, 600);
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  PANEL
+        // ═══════════════════════════════════════════════════
+        function openPanel() {
+            document.getElementById('panel-overlay').classList.add('show');
+            document.getElementById('input-panel').classList.add('show');
+            document.getElementById('fab').classList.add('open');
+            setTimeout(() => document.getElementById('url-input').focus(), 350);
+        }
+
+        function closePanel() {
+            document.getElementById('panel-overlay').classList.remove('show');
+            document.getElementById('input-panel').classList.remove('show', 'edit-mode');
+            document.getElementById('fab').classList.remove('open');
+            resetForm();
+        }
+
+        function resetForm() {
+            document.getElementById('note-form').reset();
+            document.getElementById('meta-preview').classList.remove('show');
+            if (metaAbort) metaAbort.abort();
+            editingId = null;
+            // AI 추천 태그 초기화
+            const aiWrap = document.getElementById('ai-tag-suggestions');
+            if (aiWrap) { aiWrap.classList.add('hidden'); aiWrap.innerHTML = ''; }
+
+            renderCollectionCheckboxes();
+
+            // 버튼 복원
+            document.getElementById('form-buttons').innerHTML = `
+    <button type="submit" id="submit-btn" class="btn-primary">저장하기</button>`;
+        }
+
+        function renderCollectionCheckboxes(selectedIds = []) {
+            const wrap = document.getElementById('collection-select-wrap');
+            const boxEl = document.getElementById('collection-checkboxes');
+            if (!collections.length) {
+                wrap.style.display = 'none';
+                boxEl.innerHTML = '';
+                return;
+            }
+            wrap.style.display = 'block';
+            boxEl.innerHTML = collections.map(col => `
+                <label class="checkbox-item">
+                    <input type="checkbox" name="collections" value="${col.id}" class="hidden" ${selectedIds.includes(col.id) ? 'checked' : ''} />
+                    <span class="w-4 h-4 rounded border border-indigo-500/30 flex items-center justify-center flex-shrink-0 transition-colors">
+                        <svg class="w-3 h-3 text-white opacity-0 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    </span>
+                    <span class="checkbox-label text-sm text-slate-300 transition-colors">${esc(col.name)}</span>
+                </label>
+            `).join('');
+
+            // 체크박스 스타일 업데이트 연동
+            boxEl.querySelectorAll('input[type="checkbox"]').forEach(chk => {
+                chk.addEventListener('change', (e) => {
+                    const span = e.target.nextElementSibling;
+                    const svg = span.querySelector('svg');
+                    if (e.target.checked) {
+                        span.classList.add('bg-indigo-500', 'border-indigo-500');
+                        svg.classList.remove('opacity-0');
+                    } else {
+                        span.classList.remove('bg-indigo-500', 'border-indigo-500');
+                        svg.classList.add('opacity-0');
+                    }
+                });
+                // 초기 렌더링 시
+                if (chk.checked) {
+                    const span = chk.nextElementSibling;
+                    const svg = span.querySelector('svg');
+                    span.classList.add('bg-indigo-500', 'border-indigo-500');
+                    svg.classList.remove('opacity-0');
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  EDIT
+        // ═══════════════════════════════════════════════════
+        function startEdit(id) {
+            const note = notes.find(n => n.id === id);
+            if (!note) return;
+
+            editingId = id;
+
+            // 폼 채우기
+            document.getElementById('url-input').value = note.url || '';
+            document.getElementById('content-input').value = note.content || '';
+            document.getElementById('tags-input').value = note.tags.join(', ');
+            renderCollectionCheckboxes(note.collectionIds || []);
+
+            // 메타 미리보기 복원
+            const preview = document.getElementById('meta-preview');
+            if (note.metadata?.title || note.url) {
+                preview.classList.add('show');
+                document.getElementById('meta-spinner').style.display = 'none';
+                document.getElementById('meta-title').textContent = note.metadata?.title || getDomain(note.url);
+                document.getElementById('meta-site').textContent = note.metadata?.siteName || getDomain(note.url);
+                const img = document.getElementById('meta-img');
+                if (note.metadata?.thumbnail) {
+                    img.src = note.metadata.thumbnail;
+                    img.classList.remove('hidden');
+                } else {
+                    img.classList.add('hidden');
+                }
+            }
+
+            // 수정 모드 UI
+            document.getElementById('input-panel').classList.add('edit-mode');
+            document.getElementById('edit-label').textContent = '노트 수정 중';
+            document.getElementById('form-buttons').innerHTML = `
+    <button type="submit" id="submit-btn" class="btn-primary">수정하기</button>
+    <button type="button" onclick="closePanel()" class="btn-ghost">취소</button>`;
+
+            openPanel();
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  CRUD
+        // ═══════════════════════════════════════════════════
+        async function handleSubmit(e) {
+            e.preventDefault();
+
+            const url = document.getElementById('url-input').value.trim();
+            const content = document.getElementById('content-input').value.trim();
+            const rawTags = document.getElementById('tags-input').value.trim();
+            const tags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+            const collectionIds = Array.from(document.querySelectorAll('input[name="collections"]:checked')).map(cb => cb.value);
+
+            if (!url) {
+                showToast('URL을 입력해주세요.', 'error');
+                document.getElementById('url-input').focus();
+                return;
+            }
+            try { new URL(url); } catch {
+                showToast('올바른 URL 형식으로 입력해주세요.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner mr-2"></span>${editingId ? '수정 중...' : '저장 중...'}`;
+
+            // metadata: 이미 미리보기에서 받아둔 데이터 재사용 or 새로 fetch
+            let metadata = { title: null, thumbnail: null, siteName: null };
+            try {
+                if (metaAbort) metaAbort.abort();
+                const res = await fetch(
+                    `https://linkmeta.dev/api/v1/extract?url=${encodeURIComponent(url)}&fields=title,image,siteName`,
+                    { signal: (metaAbort = new AbortController()).signal }
+                );
+                if (res.ok) {
+                    const { data } = await res.json();
+                    metadata = { title: data.title || null, thumbnail: data.image || null, siteName: data.siteName || null };
+                }
+            } catch { }
+
+            if (editingId) {
+                // ─── 수정 ───
+                const idx = notes.findIndex(n => n.id === editingId);
+                if (idx !== -1) {
+                    notes[idx] = { ...notes[idx], url, content, tags, collectionIds, metadata, updatedAt: new Date().toISOString() };
+                }
+                showToast('노트가 수정되었습니다.', 'success');
+            } else {
+                // ─── 신규 ───
+                notes.unshift({
+                    id: genId(),
+                    url,
+                    content,
+                    tags,
+                    collectionIds,
+                    createdAt: new Date().toISOString(),
+                    metadata,
+                });
+                showToast(content ? '인사이트가 저장되었습니다! 🎉' : 'URL이 저장되었습니다. 나중에 인사이트를 추가하세요.', 'success');
+            }
+
+            saveNotes();
+            refresh();
+            closePanel();
+        }
+
+        function deleteNote(id) {
+            if (!confirm('이 노트를 삭제할까요?')) return;
+            notes = notes.filter(n => n.id !== id);
+            if (editingId === id) closePanel();
+            saveNotes();
+            refresh();
+            showToast('노트가 삭제되었습니다.', 'info');
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  JSON 내보내기 / 불러오기
+        // ═══════════════════════════════════════════════════
+        function exportJSON() {
+            if (!notes.length) { showToast('내보낼 데이터가 없습니다.', 'error'); return; }
+            const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `insight-notes-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showToast(`${notes.length}개 노트를 내보냈습니다.`, 'success');
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (!Array.isArray(imported)) throw new Error();
+                    const existingIds = new Set(notes.map(n => n.id));
+                    const newItems = imported
+                        .filter(n => n.id && !existingIds.has(n.id))
+                        .map(n => ({
+                            id: n.id,
+                            url: n.url || '',
+                            content: n.content || '',
+                            tags: Array.isArray(n.tags) ? n.tags : [],
+                            createdAt: n.createdAt || new Date().toISOString(),
+                            metadata: { title: n.metadata?.title || null, thumbnail: n.metadata?.thumbnail || null, siteName: n.metadata?.siteName || null },
+                        }));
+                    notes = [...newItems, ...notes];
+                    saveNotes();
+                    refresh();
+                    showToast(`${newItems.length}개 노트를 불러왔습니다.`, 'success', 4000);
+                } catch {
+                    showToast('올바른 JSON 파일이 아닙니다.', 'error');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  API 서버 연동 스켈레톤
+        // ═══════════════════════════════════════════════════
+        async function exportDataToServer(endpoint = 'https://your-api-server.com/api/notes') {
+            if (!notes.length) { showToast('전송할 데이터가 없습니다.', 'error'); return; }
+            try {
+                showToast('서버로 전송 중...', 'info');
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exportedAt: new Date().toISOString(), count: notes.length, notes }),
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                showToast(`서버 전송 완료 (${notes.length}개)`, 'success');
+                return await res.json();
+            } catch (err) {
+                showToast(`서버 전송 실패: ${err.message}`, 'error');
+                throw err;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  AI TAG SUGGESTION (Gemini)
+        // ═══════════════════════════════════════════════════
+        function openApiKeyModal(onSaved) {
+            const modal = document.getElementById('api-key-modal');
+            const input = document.getElementById('api-key-input');
+            input.value = '';
+            modal.classList.add('show');
+            modal._onSaved = onSaved;
+            setTimeout(() => input.focus(), 200);
+        }
+        function closeApiKeyModal() {
+            document.getElementById('api-key-modal').classList.remove('show');
+        }
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if (!key) { showToast('API 키를 입력해주세요.', 'error'); return; }
+            localStorage.setItem(API_KEY_STORAGE, key);
+            closeApiKeyModal();
+            showToast('API 키가 저장되었습니다.', 'success');
+            const onSaved = document.getElementById('api-key-modal')._onSaved;
+            if (typeof onSaved === 'function') onSaved();
+        }
+        document.getElementById('api-key-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') saveApiKey();
+        });
+
+        async function suggestTagsWithAI() {
+            const content = document.getElementById('content-input').value.trim();
+            const url = document.getElementById('url-input').value.trim();
+            const metaTitle = document.getElementById('meta-title').textContent.trim();
+
+            const context = [metaTitle, content].filter(Boolean).join('\n');
+            if (!context) {
+                showToast('URL 또는 인사이트 내용을 먼저 입력해주세요.', 'error');
+                return;
+            }
+
+            let apiKey = localStorage.getItem(API_KEY_STORAGE);
+            if (!apiKey) {
+                openApiKeyModal(() => suggestTagsWithAI());
+                return;
+            }
+
+            const btn = document.getElementById('ai-tag-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner" style="border-top-color:#c4b5fd;"></span> 분석 중...`;
+
+            try {
+                const insightContent = document.getElementById('content-input').value.trim();
+                const hasInsight = !!insightContent;
+
+                // 기존 모든 태그 수집 (빈도순 정렬)
+                const tagFreq = {};
+                notes.forEach(n => n.tags.forEach(t => { tagFreq[t] = (tagFreq[t] || 0) + 1; }));
+                const existingTags = Object.entries(tagFreq)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([t]) => t);
+                const existingTagsSection = existingTags.length
+                    ? `\n\n[기존 태그 목록 - 최대한 이 중에서 선택]\n${existingTags.join(', ')}\n(의미가 유사하면 새 단어 대신 위 목록의 기존 태그를 그대로 써줘. 예: "스토리형 영상" → "스토리텔링")`
+                    : '';
+                let prompt;
+
+                if (hasInsight) {
+                    // CASE A: 인사이트 내용 있음 → 인사이트 중심 분석
+                    prompt = `너는 콘텐츠 기획자의 인사이트 노트를 분석하는 전문가야.
+
+아래는 사용자가 특정 콘텐츠를 보고 직접 작성한 인사이트 메모야.
+사용자가 '무엇에 관심을 가졌는가', '어떤 개념을 중요하게 봤는가'에 집중해서 핵심 키워드를 추출해.
+
+[분석 원칙]
+- 인사이트 내용을 최우선으로 분석, 사이트 정보는 보조 맥락으로만 활용
+- 단순 주제 나열이 아닌, 사용자의 관심 각도가 담긴 키워드
+- 동일 개념은 항상 같은 단어로 정규화 (예: ChatGPT/GPT-4 → 생성형AI)
+- "인터넷", "기술", "사람"처럼 너무 일반적인 단어는 제외
+- 한글을 기본으로, 업계에서 영어가 더 자연스러운 경우만 영어 허용
+- 쉼표로 구분된 키워드 3~5개만. 다른 말 없이.${existingTagsSection}
+
+---
+사이트 정보: ${metaTitle || '(없음)'}
+인사이트 내용: ${insightContent}`;
+                } else {
+                    // CASE B: 인사이트 없음 → URL 제목으로만 추측
+                    prompt = `아래 콘텐츠 제목을 보고 이 글이 다룰 핵심 주제 키워드를 추측해줘.
+
+[원칙]
+- 한글 우선, 업계 용어는 영어 허용
+- 너무 일반적인 단어 제외
+- 쉼표로 구분된 3~5개만. 다른 말 없이.${existingTagsSection}
+
+제목: ${metaTitle}`;
+                }
+
+                const res = await fetch(
+                    'https://api.groq.com/openai/v1/chat/completions',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: 'llama-3.3-70b-versatile',
+                            messages: [{ role: 'user', content: prompt }],
+                            temperature: 0.4,
+                            max_tokens: 100
+                        })
+                    }
+                );
+
+                if (res.status === 401 || res.status === 403) {
+                    localStorage.removeItem(API_KEY_STORAGE);
+                    showToast('API 키가 유효하지 않습니다. 다시 설정해주세요.', 'error');
+                    openApiKeyModal(() => suggestTagsWithAI());
+                    return;
+                }
+                if (res.status === 429) {
+                    showToast('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.', 'error');
+                    return;
+                }
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const data = await res.json();
+                const raw = data.choices?.[0]?.message?.content || '';
+                const suggested = raw.split(',').map(t => t.trim()).filter(Boolean).slice(0, 5);
+
+                if (!suggested.length) throw new Error('태그를 추출할 수 없습니다');
+
+                renderAiSuggestions(suggested);
+            } catch (err) {
+                showToast(`AI 분석 실패: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> AI 태그 추천`;
+            }
+        }
+
+        function renderAiSuggestions(tags) {
+            const wrap = document.getElementById('ai-tag-suggestions');
+            wrap.classList.remove('hidden');
+            wrap.innerHTML = '<span style="font-size:0.68rem;color:#64748b;font-weight:600;align-self:center;">✨ AI 추천:</span>' +
+                tags.map(t => `<button type="button" class="ai-tag-suggestion" onclick="appendTag('${esc(t)}')">${esc(t)}</button>`).join('');
+        }
+
+        function appendTag(tag) {
+            const input = document.getElementById('tags-input');
+            const current = input.value.trim();
+            const existing = current ? current.split(',').map(t => t.trim()) : [];
+            if (!existing.includes(tag)) {
+                input.value = existing.length ? current + ', ' + tag : tag;
+            }
+            // 클릭한 버튼 강조
+            event.target.style.background = 'rgba(139,92,246,.4)';
+            event.target.style.borderStyle = 'solid';
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  MENU
+        // ═══════════════════════════════════════════════════
+        function toggleMenu() {
+            document.getElementById('menu-dropdown').classList.toggle('show');
+        }
+        function closeMenu() {
+            document.getElementById('menu-dropdown').classList.remove('show');
+        }
+        document.addEventListener('click', e => {
+            if (!document.getElementById('menu-btn').contains(e.target) &&
+                !document.getElementById('menu-dropdown').contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        function closeApiKeyModal() { closeModal('api-key-modal'); }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('show');
+        }
+
+        // 모달 외부 클릭 닫기
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', e => {
+                if (e.target === modal) closeModal(modal.id);
+            });
+        });
+
+        // ═══════════════════════════════════════════════════
+        //  COLLECTION MANAGER
+        // ═══════════════════════════════════════════════════
+        function openCollectionManager() {
+            renderCollectionManager();
+            document.getElementById('collection-modal').classList.add('show');
+            setTimeout(() => document.getElementById('new-col-name').focus(), 200);
+        }
+
+        function renderCollectionManager() {
+            const listEl = document.getElementById('collection-manager-list');
+            if (!collections.length) {
+                listEl.innerHTML = '<p class="text-sm text-slate-500 text-center py-4">생성된 컬렉션이 없습니다.</p>';
+                return;
+            }
+            listEl.innerHTML = collections.map(col => `
+                <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                    <span class="text-sm font-semibold text-slate-200">${esc(col.name)}</span>
+                    <button onclick="deleteCollection('${col.id}')" class="text-xs text-red-400 hover:bg-red-500/10 px-2 py-1 rounded transition-colors">삭제</button>
+                </div>
+            `).join('');
+        }
+
+        function addCollection() {
+            const input = document.getElementById('new-col-name');
+            const name = input.value.trim();
+            if (!name) return;
+            collections.push({
+                id: 'col_' + genId(),
+                name,
+                createdAt: new Date().toISOString()
+            });
+            input.value = '';
+            saveNotes();
+            renderCollectionManager();
+            refresh();
+            renderCollectionCheckboxes();
+        }
+
+        function deleteCollection(id) {
+            if (!confirm('이 컬렉션을 정말 삭제하시겠습니까? (노트는 삭제되지 않으며 미분류로 변경됩니다)')) return;
+            collections = collections.filter(c => c.id !== id);
+            notes.forEach(n => n.collectionIds = n.collectionIds ? n.collectionIds.filter(cid => cid !== id) : []);
+            if (activeCollection === id) activeCollection = 'all';
+            saveNotes();
+            renderCollectionManager();
+            refresh();
+            renderCollectionCheckboxes();
+        }
+
+        // ── 키보드 ──
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                const openModal = document.querySelector('.modal.show');
+                if (openModal) { closeModal(openModal.id); return; }
+                const panel = document.getElementById('input-panel');
+                if (panel.classList.contains('show')) { closePanel(); return; }
+            }
+            if (e.key === 'Enter') {
+                const colModal = document.getElementById('collection-modal');
+                if (colModal.classList.contains('show') && document.activeElement.id === 'new-col-name') {
+                    addCollection();
+                }
+            }
+        });
+
+        // ═══════════════════════════════════════════════════
+        //  REFRESH & INIT
+        // ═══════════════════════════════════════════════════
+        function refresh() {
+            updateStats();
+            renderCollectionTabs();
+            renderTagCloud();
+            renderList();
+        }
+
+        loadNotes();
+        refresh();
+        handleShareTarget();
+    </script>
+</body>
+
+</html>

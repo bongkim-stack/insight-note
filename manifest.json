@@ -1,0 +1,26 @@
+{
+    "name": "인사이트 노트",
+    "short_name": "Insight",
+    "description": "URL과 인사이트를 기록하고 관리하는 개인 지식 관리 도구",
+    "start_url": "/index.html",
+    "display": "standalone",
+    "background_color": "#0d0d1a",
+    "theme_color": "#0d0d1a",
+    "icons": [
+        {
+            "src": "icon.svg",
+            "sizes": "192x192 512x512 any",
+            "type": "image/svg+xml"
+        }
+    ],
+    "share_target": {
+        "action": "/index.html",
+        "method": "GET",
+        "enctype": "application/x-www-form-urlencoded",
+        "params": {
+            "title": "title",
+            "text": "text",
+            "url": "url"
+        }
+    }
+}
