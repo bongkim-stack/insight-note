@@ -1196,20 +1196,88 @@
         }
 
         // ═══════════════════════════════════════════════════
-        //  STORAGE
+        //  DATABASE (FIRESTORE)
         // ═══════════════════════════════════════════════════
-        function loadNotes() {
-            try {
-                notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-                notes = notes.map(n => ({ ...n, collectionIds: n.collectionIds || [] }));
+        async function loadNotes() {
+            if (!currentUser) {
+                notes = [];
+                collections = [];
+                renderList();
+                renderCollectionTabs();
+                return;
             }
-            catch { notes = []; }
-            try { collections = JSON.parse(localStorage.getItem(COL_STORAGE)) || []; }
-            catch { collections = []; }
+
+            try {
+                // 1. 컬렉션 데이터 로드
+                const colSnap = await db.collection('users').doc(currentUser.uid).collection('categories').get();
+                collections = colSnap.docs.map(doc => doc.data());
+
+                // 2. 노트 데이터 로드 (최신순)
+                const noteSnap = await db.collection('users').doc(currentUser.uid).collection('notes')
+                    .orderBy('createdAt', 'desc').get();
+
+                notes = noteSnap.docs.map(doc => ({
+                    ...doc.data(),
+                    id: doc.id,
+                    collectionIds: doc.data().collectionIds || []
+                }));
+
+                // 3. (마이그레이션) 로컬 데이터가 있으면 클라우드에 복사하고 로컬 데이터 삭제
+                const localNotes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+                const localCols = JSON.parse(localStorage.getItem(COL_STORAGE)) || [];
+
+                if (localNotes.length > 0 || localCols.length > 0) {
+                    showToast('기존 로컬 데이터를 클라우드로 옮기는 중...', 'info');
+
+                    const batch = db.batch();
+                    const userRef = db.collection('users').doc(currentUser.uid);
+
+                    for (const col of localCols) {
+                        batch.set(userRef.collection('categories').doc(col.id), col);
+                        if (!collections.find(c => c.id === col.id)) collections.push(col);
+                    }
+                    for (const note of localNotes) {
+                        const { id, ...noteData } = note;
+                        batch.set(userRef.collection('notes').doc(id), noteData);
+                        if (!notes.find(n => n.id === id)) notes.push({ id, ...noteData });
+                    }
+
+                    await batch.commit();
+                    localStorage.removeItem(STORAGE_KEY);
+                    localStorage.removeItem(COL_STORAGE);
+                    showToast('데이터 마이그레이션 완료!', 'success');
+                }
+
+                renderList();
+                renderTagCloud();
+                renderCollectionTabs();
+                updateStats();
+
+            } catch (err) {
+                console.error("데이터 로드 오류:", err);
+                showToast("데이터를 불러오지 못했습니다.", "error");
+            }
         }
-        function saveNotes() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-            localStorage.setItem(COL_STORAGE, JSON.stringify(collections));
+
+        async function saveNoteToDB(note) {
+            if (!currentUser) return;
+            const { id, ...data } = note;
+            await db.collection('users').doc(currentUser.uid).collection('notes').doc(id).set(data);
+        }
+
+        async function saveCollectionToDB(col) {
+            if (!currentUser) return;
+            await db.collection('users').doc(currentUser.uid).collection('categories').doc(col.id).set(col);
+        }
+
+        async function deleteNoteFromDB(id) {
+            if (!currentUser) return;
+            await db.collection('users').doc(currentUser.uid).collection('notes').doc(id).delete();
+        }
+
+        async function deleteCollectionFromDB(id) {
+            if (!currentUser) return;
+            await db.collection('users').doc(currentUser.uid).collection('categories').doc(id).delete();
         }
 
         // ═══════════════════════════════════════════════════
@@ -1641,13 +1709,16 @@
             if (editingId) {
                 // ─── 수정 ───
                 const idx = notes.findIndex(n => n.id === editingId);
+                let updatedNote;
                 if (idx !== -1) {
-                    notes[idx] = { ...notes[idx], url, content, tags, collectionIds, metadata, updatedAt: new Date().toISOString() };
+                    updatedNote = { ...notes[idx], url, content, tags, collectionIds, metadata, updatedAt: new Date().toISOString() };
+                    notes[idx] = updatedNote;
                 }
+                await saveNoteToDB(updatedNote);
                 showToast('노트가 수정되었습니다.', 'success');
             } else {
                 // ─── 신규 ───
-                notes.unshift({
+                const newNote = {
                     id: genId(),
                     url,
                     content,
@@ -1655,20 +1726,21 @@
                     collectionIds,
                     createdAt: new Date().toISOString(),
                     metadata,
-                });
+                };
+                notes.unshift(newNote);
+                await saveNoteToDB(newNote);
                 showToast(content ? '인사이트가 저장되었습니다! 🎉' : 'URL이 저장되었습니다. 나중에 인사이트를 추가하세요.', 'success');
             }
 
-            saveNotes();
             refresh();
             closePanel();
         }
 
-        function deleteNote(id) {
+        async function deleteNote(id) {
             if (!confirm('이 노트를 삭제할까요?')) return;
             notes = notes.filter(n => n.id !== id);
+            await deleteNoteFromDB(id);
             if (editingId === id) closePanel();
-            saveNotes();
             refresh();
             showToast('노트가 삭제되었습니다.', 'info');
         }
@@ -1691,7 +1763,7 @@
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = e => {
+            reader.onload = async e => {
                 try {
                     const imported = JSON.parse(e.target.result);
                     if (!Array.isArray(imported)) throw new Error();
@@ -1703,15 +1775,41 @@
                             url: n.url || '',
                             content: n.content || '',
                             tags: Array.isArray(n.tags) ? n.tags : [],
+                            collectionIds: Array.isArray(n.collectionIds) ? n.collectionIds : [],
                             createdAt: n.createdAt || new Date().toISOString(),
                             metadata: { title: n.metadata?.title || null, thumbnail: n.metadata?.thumbnail || null, siteName: n.metadata?.siteName || null },
                         }));
-                    notes = [...newItems, ...notes];
-                    saveNotes();
-                    refresh();
-                    showToast(`${newItems.length}개 노트를 불러왔습니다.`, 'success', 4000);
-                } catch {
-                    showToast('올바른 JSON 파일이 아닙니다.', 'error');
+
+                    if (newItems.length > 0) {
+                        notes = [...newItems, ...notes];
+                        if (currentUser) {
+                            showToast('클라우드에 데이터를 동기화 중입니다...', 'info');
+                            const batch = db.batch();
+                            const userRef = db.collection('users').doc(currentUser.uid);
+                            const notesRef = userRef.collection('notes');
+
+                            // Firestore Batch는 1회 최대 500개까지만 지원하므로 필요시 분할해야 하지만
+                            // 여기서는 단순화를 위해 500개 미만이라고 가정하고 작성합니다.
+                            const chunks = [];
+                            for (let i = 0; i < newItems.length; i += 500) chunks.push(newItems.slice(i, i + 500));
+
+                            for (const chunk of chunks) {
+                                const chunkBatch = db.batch();
+                                for (const item of chunk) {
+                                    const { id, ...itemData } = item;
+                                    chunkBatch.set(notesRef.doc(id), itemData);
+                                }
+                                await chunkBatch.commit();
+                            }
+                        }
+                        refresh();
+                        showToast(`${newItems.length}개 노트를 불러왔습니다.`, 'success', 4000);
+                    } else {
+                        showToast('새로 추가할 데이터가 없습니다 (모두 중복).', 'info');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast('데이터 불러오기 실패: 올바른 JSON 파일이 원인일 수 있습니다.', 'error');
                 }
                 event.target.value = '';
             };
@@ -1948,31 +2046,48 @@
             `).join('');
         }
 
-        function addCollection() {
+        async function addCollection() {
             const input = document.getElementById('new-col-name');
             const name = input.value.trim();
             if (!name) return;
-            collections.push({
-                id: 'col_' + genId(),
-                name,
-                createdAt: new Date().toISOString()
-            });
-            input.value = '';
-            saveNotes();
-            renderCollectionManager();
-            refresh();
-            renderCollectionCheckboxes();
+
+            try {
+                const newCol = { id: genColId(), name, createdAt: new Date().toISOString() };
+                collections.push(newCol);
+                await saveCollectionToDB(newCol);
+                input.value = '';
+                renderCollectionManager();
+                renderCollectionTabs();
+                renderCollectionCheckboxes();
+                showToast(`'${esc(name)}' 추가됨`, 'success');
+            } catch (e) { showToast('컬렉션 저장 실패', 'error'); }
         }
 
-        function deleteCollection(id) {
-            if (!confirm('이 컬렉션을 정말 삭제하시겠습니까? (노트는 삭제되지 않으며 미분류로 변경됩니다)')) return;
-            collections = collections.filter(c => c.id !== id);
-            notes.forEach(n => n.collectionIds = n.collectionIds ? n.collectionIds.filter(cid => cid !== id) : []);
-            if (activeCollection === id) activeCollection = 'all';
-            saveNotes();
-            renderCollectionManager();
-            refresh();
-            renderCollectionCheckboxes();
+        async function deleteCollection(id) {
+            const col = collections.find(c => c.id === id);
+            if (!col || !confirm(`'${col.name}' 컬렉션을 삭제할까요? (노트는 삭제되지 않습니다)`)) return;
+
+            try {
+                collections = collections.filter(c => c.id !== id);
+                await deleteCollectionFromDB(id);
+                // 해당 컬렉션에 속한 노트들의 collectionIds 배열에서도 id 제거 (클라이언트 단 수정 후 DB 반영)
+                for (const note of notes) {
+                    if (note.collectionIds && note.collectionIds.includes(id)) {
+                        note.collectionIds = note.collectionIds.filter(cid => cid !== id);
+                        await saveNoteToDB(note);
+                    }
+                }
+
+                if (activeCollection === id) {
+                    activeCollection = 'all';
+                    renderList();
+                }
+
+                renderCollectionManager();
+                renderCollectionTabs();
+                renderCollectionCheckboxes();
+                showToast('삭제되었습니다', 'success');
+            } catch (e) { showToast('컬렉션 삭제 실패', 'error'); }
         }
 
         // ── 키보드 ──
