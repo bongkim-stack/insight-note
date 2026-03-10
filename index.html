@@ -1081,10 +1081,7 @@
             } else {
                 authBtn.textContent = '로그인';
                 authBtn.onclick = openAuthModal;
-                notes = [];
-                collections = [];
-                renderList();
-                renderCollectionTabs();
+                loadNotes();
             }
         });
 
