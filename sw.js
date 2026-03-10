@@ -1,7 +1,8 @@
-const CACHE_NAME = 'insight-notes-v2';
+const CACHE_NAME = 'insight-notes-v3';
 const ASSETS = [
     '/index.html',
-    '/'
+    '/',
+    '/manifest.json'
 ];
 
 self.addEventListener('install', event => {
@@ -26,13 +27,24 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+    // API 호출이나 외부 링크는 캐싱하지 않음
+    if (event.request.url.includes('firebaseio.com') || event.request.url.includes('googleapis.com')) {
+        return;
+    }
+
     event.respondWith(
-        caches.match(event.request)
+        fetch(event.request)
             .then(response => {
-                // 네트워크 우선 전략으로 변경: 최신 코드를 받도록
-                return fetch(event.request).catch(() => {
-                    return response || caches.match('/index.html');
+                // 네트워크 성공 시 해당 응답을 캐시에 저장(업데이트)하고 반환
+                const resClone = response.clone();
+                caches.open(CACHE_NAME).then(cache => {
+                    cache.put(event.request, resClone);
                 });
+                return response;
+            })
+            .catch(() => {
+                // 오프라인이거나 네트워크 실패 시 캐시에서 반환
+                return caches.match(event.request).then(res => res || caches.match('/index.html'));
             })
     );
 });
