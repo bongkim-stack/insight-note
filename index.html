@@ -1503,7 +1503,8 @@
                 return `<button onclick="filterByCollection('${col.id}')" class="collection-tab ${activeCollection === col.id ? 'active' : ''}">${esc(col.name)} <span class="opacity-50 text-[10px] ml-1">${count}</span></button>`;
             }).join('');
 
-            const uncatCount = notes.filter(n => !n.collectionIds || n.collectionIds.length === 0).length;
+            const validColIds = new Set(collections.map(c => c.id));
+            const uncatCount = notes.filter(n => !n.collectionIds || n.collectionIds.length === 0 || !n.collectionIds.some(id => validColIds.has(id))).length;
             if (uncatCount > 0) {
                 tabsHtml += `<button onclick="filterByCollection('uncategorized')" class="collection-tab ${activeCollection === 'uncategorized' ? 'active' : ''}">미분류 <span class="opacity-50 text-[10px] ml-1">${uncatCount}</span></button>`;
             }
@@ -1553,9 +1554,10 @@
             const sort = document.getElementById('sort-select').value;
 
             let list = [...notes];
+            const validColIds = new Set(collections.map(c => c.id));
 
             if (activeCollection === 'uncategorized') {
-                list = list.filter(n => !n.collectionIds || n.collectionIds.length === 0);
+                list = list.filter(n => !n.collectionIds || n.collectionIds.length === 0 || !n.collectionIds.some(id => validColIds.has(id)));
             } else if (activeCollection !== 'all') {
                 list = list.filter(n => n.collectionIds && n.collectionIds.includes(activeCollection));
             }
@@ -1728,7 +1730,7 @@
             document.getElementById('panel-overlay').classList.add('show');
             document.getElementById('input-panel').classList.add('show');
             document.getElementById('fab').classList.add('open');
-            
+
             // 350ms: 슬라이드업 애니메이션 대기 후 포커스 및 클립보드 확인
             setTimeout(async () => {
                 const urlInput = document.getElementById('url-input');
@@ -2270,7 +2272,7 @@
             if (!col) return;
             const newName = prompt('새 컬렉션 이름을 입력하세요', col.name);
             if (!newName || newName.trim() === '' || newName === col.name) return;
-            
+
             try {
                 col.name = newName.trim();
                 await saveCollectionToDB(col);
@@ -2358,7 +2360,7 @@
         // ── 폼 이벤트 리스너 명시적 등록 (백업) ──
         const noteForm = document.getElementById('note-form');
         if (noteForm) {
-            noteForm.addEventListener('submit', function(e) {
+            noteForm.addEventListener('submit', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 if (!isSubmitting) handleSubmit(e);
@@ -2368,7 +2370,7 @@
         // submit 버튼 click 핸들러 (백업)
         const submitBtn = document.getElementById('submit-btn');
         if (submitBtn) {
-            submitBtn.addEventListener('click', function(e) {
+            submitBtn.addEventListener('click', function (e) {
                 e.preventDefault();
                 if (!isSubmitting) handleSubmit(e);
             });
