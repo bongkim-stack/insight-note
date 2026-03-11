@@ -2386,16 +2386,43 @@
         // ═══════════════════════════════════════════════════
         function openIframeModal(url) {
             const modal = document.getElementById('iframe-modal');
-            document.getElementById('iframe-external-link').href = url;
-            document.getElementById('iframe-domain').textContent = getDomain(url);
-            document.getElementById('iframe-loader').style.display = 'flex';
-            document.getElementById('iframe-content').src = url;
+            const domain = getDomain(url);
             
+            document.getElementById('iframe-external-link').href = url;
+            document.getElementById('iframe-domain').textContent = domain;
+            
+            const loader = document.getElementById('iframe-loader');
+            const spinner = document.getElementById('iframe-spinner');
+            const statusText = document.getElementById('iframe-status-text');
+            const iframe = document.getElementById('iframe-content');
+            
+            // 초기화
+            loader.style.display = 'flex';
+            spinner.style.display = 'block';
+            statusText.textContent = '연결 중입니다...';
+            statusText.className = 'text-sm text-slate-600 font-medium';
+            iframe.src = 'about:blank'; // 초기화 후 바로 덮어씀
+
             modal.classList.remove('hidden');
             requestAnimationFrame(() => {
                 modal.classList.remove('opacity-0', 'pointer-events-none');
             });
             document.body.style.overflow = 'hidden'; // 배경 스크롤 차단
+
+            // X-Frame-Options SAMEORIGIN 등이 걸려있는 대표적인 차단 도메인 리스트
+            const blockedDomains = ['instagram.com', 'youtube.com', 'youtu.be', 'github.com', 'twitter.com', 'x.com', 'naver.com'];
+            const isBlocked = blockedDomains.some(d => domain.includes(d));
+
+            if (isBlocked) {
+                // iframe 로드를 아예 시도하지 않고 차단 안내 화면 표시
+                setTimeout(() => {
+                    spinner.style.display = 'none';
+                    statusText.textContent = '보안 정책상 열 수 없는 사이트입니다.';
+                    statusText.className = 'text-sm text-red-500 font-bold';
+                }, 300); // UI 전환을 부드럽게 하기 위한 약간의 딜레이
+            } else {
+                iframe.src = url;
+            }
         }
 
         function closeIframeModal() {
@@ -2410,7 +2437,7 @@
     </script>
 
     <!-- ══════════════ IFRAME MODAL ══════════════ -->
-    <div id="iframe-modal" class="fixed inset-0 z-[100] bg-slate-900 hidden flex-col transition-opacity duration-300 opacity-0 pointer-events-none">
+    <div id="iframe-modal" class="fixed inset-0 z-[100] w-full h-full bg-slate-900 hidden flex-col transition-opacity duration-300 opacity-0 pointer-events-none">
         <div class="flex items-center justify-between p-3 bg-slate-800 border-b border-white/10 shrink-0">
             <button onclick="closeIframeModal()" class="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white" aria-label="닫기">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -2423,14 +2450,14 @@
                 </a>
             </div>
         </div>
-        <div class="flex-1 bg-white relative">
-            <div id="iframe-loader" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 p-6 text-center">
-                <div class="w-8 h-8 md:w-10 md:h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p class="text-sm text-slate-600 font-medium">연결 중입니다...</p>
-                <p class="text-[11px] text-slate-400 mt-3 max-w-[280px]">인스타그램, 유튜브 등 일부 사이트는 보안 정책상 이 화면에서 열리지 않을 수 있습니다. 빈 화면이 지속될 경우 우측 상단의 <b>'새 창 열기'</b> 아이콘을 이용해 주세요.</p>
+        <div class="flex-1 w-full bg-white relative flex flex-col overflow-hidden">
+            <div id="iframe-loader" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-100 p-6 text-center">
+                <div id="iframe-spinner" class="w-8 h-8 md:w-10 md:h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p id="iframe-status-text" class="text-sm text-slate-600 font-medium">연결 중입니다...</p>
+                <p id="iframe-warning-text" class="text-[11px] text-slate-400 mt-3 max-w-[280px]">인스타그램, 유튜브 등 일부 사이트는 보안 정책상 이 화면에서 열리지 않을 수 있습니다. 빈 화면이 지속될 경우 우측 상단의 <b>'새 창 열기'</b> 아이콘을 이용해 주세요.</p>
             </div>
             <!-- sandbox 속성을 추가하여 iframe 내 제약을 일부 풀어줌 -->
-            <iframe id="iframe-content" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" class="w-full h-full border-none relative z-10 bg-transparent" onload="document.getElementById('iframe-loader').style.display='none'"></iframe>
+            <iframe id="iframe-content" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" class="absolute inset-0 w-full h-full border-none z-10 bg-transparent" onload="document.getElementById('iframe-loader').style.display='none'"></iframe>
         </div>
     </div>
 </body>
