@@ -761,7 +761,7 @@
                 </div>
                 <div>
                     <p class="text-sm font-bold gradient-text leading-none">인사이트 노트</p>
-                    <p class="text-[10px] text-slate-600 mt-0.5">v3.2.0</p>
+                    <p class="text-[10px] text-slate-600 mt-0.5">v3.2.1</p>
                 </div>
             </div>
             <div class="relative flex items-center gap-1">
@@ -836,7 +836,7 @@
         <!-- ══ 태그 클라우드 ══ -->
         <div id="tag-cloud-wrap" class="hidden bg-white/5 rounded-xl p-3 border border-white/5">
             <div class="flex items-center gap-2 mb-2">
-                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">분류 태그</p>
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">태그</p>
                 <button id="clear-filter-btn" onclick="clearFilter()"
                     class="hidden text-[11px] text-indigo-400 underline underline-offset-2">선택 해제</button>
             </div>
@@ -1113,8 +1113,10 @@
                 currentUser = user;
                 authBtn.textContent = '로그아웃';
                 authBtn.onclick = () => {
-                    auth.signOut();
-                    showToast('로그아웃 되었습니다.');
+                    if (confirm('정말 로그아웃하시겠습니까?')) {
+                        auth.signOut();
+                        showToast('로그아웃 되었습니다.');
+                    }
                 };
             } else {
                 currentUser = null;
@@ -1508,6 +1510,10 @@
             if (uncatCount > 0) {
                 tabsHtml += `<button onclick="filterByCollection('uncategorized')" class="collection-tab ${activeCollection === 'uncategorized' ? 'active' : ''}">미분류 <span class="opacity-50 text-[10px] ml-1">${uncatCount}</span></button>`;
             }
+
+            tabsHtml += `<button onclick="openCollectionManager()" class="collection-tab text-slate-400 hover:text-white px-2" title="컬렉션 관리">
+                <svg class="w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </button>`;
 
             tabsEl.innerHTML = tabsHtml;
         }
