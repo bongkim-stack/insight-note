@@ -2476,8 +2476,19 @@
         //  IFRAME MODAL (인앱 브라우저)
         // ═══════════════════════════════════════════════════
         function openIframeModal(url) {
-            const modal = document.getElementById('iframe-modal');
             const domain = getDomain(url);
+            
+            // X-Frame-Options SAMEORIGIN 등이 걸려있는 대표적인 차단 도메인 리스트
+            const blockedDomains = ['instagram.com', 'youtube.com', 'youtu.be', 'github.com', 'twitter.com', 'x.com', 'naver.com'];
+            const isBlocked = blockedDomains.some(d => domain.includes(d));
+
+            if (isBlocked) {
+                // 보안 정책상 차단되는 사이트는 모달을 띄우지 않고 곧바로 새 탭으로 엽니다.
+                window.open(url, '_blank');
+                return;
+            }
+
+            const modal = document.getElementById('iframe-modal');
             
             document.getElementById('iframe-external-link').href = url;
             document.getElementById('iframe-domain').textContent = domain;
@@ -2507,20 +2518,7 @@
             });
             document.body.style.overflow = 'hidden'; // 배경 스크롤 차단
 
-            // X-Frame-Options SAMEORIGIN 등이 걸려있는 대표적인 차단 도메인 리스트
-            const blockedDomains = ['instagram.com', 'youtube.com', 'youtu.be', 'github.com', 'twitter.com', 'x.com', 'naver.com'];
-            const isBlocked = blockedDomains.some(d => domain.includes(d));
-
-            if (isBlocked) {
-                // iframe 로드를 아예 시도하지 않고 차단 안내 화면 표시
-                setTimeout(() => {
-                    spinner.style.display = 'none';
-                    statusText.textContent = '보안 정책상 열 수 없는 사이트입니다.';
-                    statusText.className = 'text-sm text-red-500 font-bold';
-                }, 300); // UI 전환을 부드럽게 하기 위한 약간의 딜레이
-            } else {
-                iframe.src = url;
-            }
+            iframe.src = url;
         }
 
         function closeIframeModal() {
