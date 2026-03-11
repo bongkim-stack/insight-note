@@ -2489,20 +2489,7 @@
             const isDraft = !note.content || note.content.trim() === '';
             
             let html = `
-                <div class="mb-5 flex flex-col gap-3">
-                    ${thumbUrl ? `<img src="${esc(thumbUrl)}" alt="" class="w-full h-40 object-cover rounded-xl border border-white/10" onerror="this.style.display='none'" />` : ''}
-                    <div>
-                        <a href="${esc(note.url)}" target="_blank" rel="noopener noreferrer" class="text-base font-bold text-slate-100 leading-snug hover:text-indigo-400 transition-colors block mb-1">
-                            ${esc(note.title) || '제목 없음'}
-                        </a>
-                        ${note.url ? `
-                            <a href="${esc(note.url)}" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-md">
-                                ${favicon ? `<img src="${favicon}" alt="" class="w-3.5 h-3.5 rounded-sm" />` : ''}
-                                <span class="truncate">${esc(siteName)}</span>
-                            </a>
-                        ` : ''}
-                    </div>
-                </div>
+
                 
                 <div class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap bg-white/5 p-4 rounded-xl border border-white/5">
                     ${isDraft ? '<span class="text-slate-500 italic">아직 작성된 인사이트가 없습니다.</span>' : esc(note.content)}
@@ -2516,7 +2503,10 @@
                 
                 <div class="mt-5 flex items-center justify-between text-xs text-slate-500 border-t border-white/5 pt-4">
                     <span>${formatDate(note.createdAt)}</span>
-                    <button onclick="closeDetailModal(); startEdit('${note.id}')" class="text-indigo-400 hover:text-indigo-300 font-medium px-3 py-1.5 bg-indigo-500/10 rounded-lg">편집하기</button>
+                    <div class="flex items-center gap-2">
+                        <button onclick="closeDetailModal(); startEdit('${note.id}')" class="text-indigo-400 hover:text-indigo-300 font-medium px-3 py-1.5 bg-indigo-500/10 rounded-lg">편집</button>
+                        <button onclick="closeDetailModal(); deleteNote('${note.id}')" class="text-red-400 hover:text-red-300 font-medium px-3 py-1.5 bg-red-500/10 rounded-lg">삭제</button>
+                    </div>
                 </div>
             `;
             
