@@ -2491,9 +2491,7 @@
             let html = `
 
                 
-                <div class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap bg-white/5 p-4 rounded-xl border border-white/5">
-                    ${isDraft ? '<span class="text-slate-500 italic">아직 작성된 인사이트가 없습니다.</span>' : esc(note.content)}
-                </div>
+                <div class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap bg-white/5 p-4 rounded-xl border border-white/5">${isDraft ? '<span class="text-slate-500 italic">아직 작성된 인사이트가 없습니다.</span>' : esc(note.content)}</div>
                 
                 ${note.tags && note.tags.length ? `
                     <div class="mt-4 flex flex-wrap gap-1.5">
