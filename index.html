@@ -761,7 +761,7 @@
                 </div>
                 <div>
                     <p class="text-sm font-bold gradient-text leading-none">인사이트 노트</p>
-                    <p class="text-[10px] text-slate-600 mt-0.5">Insight Note</p>
+                    <p class="text-[10px] text-slate-600 mt-0.5">v3.1.0</p>
                 </div>
             </div>
             <div class="relative flex items-center gap-1">
@@ -876,7 +876,7 @@
     </main>
 
     <!-- ══════════════ FAB ══════════════ -->
-    <button id="fab" onclick="openPanel()" aria-label="새 노트 추가">
+    <button id="fab" onclick="togglePanel()" aria-label="새 노트 추가">
         <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
         </svg>
@@ -1071,7 +1071,7 @@
 
         // 인증 지속성 설정 (명시적 LOCAL 설정)
         try {
-            auth.setPersistence('local').catch(err => console.warn('Persistence error:', err));
+            auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => console.warn('Persistence error:', err));
         } catch (e) {
             console.warn('Persistence API not available:', e.message);
         }
@@ -1593,7 +1593,7 @@
             const siteName = note.metadata?.siteName || domain;
 
             const thumbHtml = thumb
-                ? `<div class="thumb-wrap"><img src="${esc(thumb)}" alt="" loading="lazy" onerror="this.parentElement.remove()" /></div>`
+                ? `<a href="${esc(note.url)}" target="_blank" rel="noopener noreferrer" class="thumb-wrap flex-shrink-0 block hover:opacity-80 transition-opacity"><img src="${esc(thumb)}" alt="" loading="lazy" onerror="this.parentElement.remove()" /></a>`
                 : '';
 
             const draftBadge = isDraft
@@ -1601,15 +1601,14 @@
                 : '';
 
             const titleRow = title
-                ? `<p class="text-sm font-semibold text-slate-200 leading-snug line-clamp-2">${hl(title, q)}</p>`
+                ? `<a href="${esc(note.url)}" target="_blank" rel="noopener noreferrer" class="block text-sm font-semibold text-slate-200 leading-snug truncate hover:text-indigo-300 transition-colors">${hl(title, q)}</a>`
                 : '';
 
             const urlRow = note.url
                 ? `<a href="${esc(note.url)}" target="_blank" rel="noopener noreferrer"
-           class="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 truncate transition-colors">
-         ${favicon ? `<img src="${favicon}" alt="" class="w-3.5 h-3.5 rounded-sm flex-shrink-0" onerror="this.remove()" />` : ''}
-         <span class="truncate">${esc(siteName)}</span>
-         <svg class="w-3 h-3 flex-shrink-0 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+           class="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-1.5 py-1 rounded mt-1">
+         ${favicon ? `<img src="${favicon}" alt="" class="w-3 h-3 rounded-sm flex-shrink-0" onerror="this.remove()" />` : ''}
+         <svg class="w-3.5 h-3.5 flex-shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
        </a>`
                 : '';
 
@@ -1717,10 +1716,36 @@
         // ═══════════════════════════════════════════════════
         //  PANEL
         // ═══════════════════════════════════════════════════
-        function openPanel() {
+        async function togglePanel() {
+            if (document.getElementById('input-panel').classList.contains('show')) {
+                closePanel();
+            } else {
+                await openPanel();
+            }
+        }
+
+        async function openPanel() {
             document.getElementById('panel-overlay').classList.add('show');
             document.getElementById('input-panel').classList.add('show');
             document.getElementById('fab').classList.add('open');
+            
+            // 자동 붙여넣기 (클립보드 확인)
+            try {
+                if (!editingId && navigator.clipboard && navigator.clipboard.readText) {
+                    const text = await navigator.clipboard.readText();
+                    if (text && text.match(/https?:\/\/[^\s]+/)) {
+                        const urlInput = document.getElementById('url-input');
+                        if (!urlInput.value) {
+                            urlInput.value = text.trim();
+                            onUrlInput();
+                            showToast('클립보드 URL을 추가했습니다.', 'info');
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log('Clipboard issue:', err);
+            }
+
             setTimeout(() => document.getElementById('url-input').focus(), 350);
         }
 
@@ -2228,9 +2253,28 @@
             listEl.innerHTML = collections.map(col => `
                 <div class="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
                     <span class="text-sm font-semibold text-slate-200">${esc(col.name)}</span>
-                    <button onclick="deleteCollection('${col.id}')" class="text-xs text-red-400 hover:bg-red-500/10 px-2 py-1 rounded transition-colors">삭제</button>
+                    <div class="flex gap-1">
+                        <button onclick="editCollection('${col.id}')" class="text-xs text-indigo-400 hover:bg-indigo-500/10 px-2 py-1 rounded transition-colors">편집</button>
+                        <button onclick="deleteCollection('${col.id}')" class="text-xs text-red-400 hover:bg-red-500/10 px-2 py-1 rounded transition-colors">삭제</button>
+                    </div>
                 </div>
             `).join('');
+        }
+
+        async function editCollection(id) {
+            const col = collections.find(c => c.id === id);
+            if (!col) return;
+            const newName = prompt('새 컬렉션 이름을 입력하세요', col.name);
+            if (!newName || newName.trim() === '' || newName === col.name) return;
+            
+            try {
+                col.name = newName.trim();
+                await saveCollectionToDB(col);
+                renderCollectionManager();
+                renderCollectionTabs();
+                renderCollectionCheckboxes();
+                showToast('컬렉션 이름이 수정되었습니다', 'success');
+            } catch (e) { showToast('컬렉션 수정 실패', 'error'); }
         }
 
         async function addCollection() {
