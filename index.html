@@ -1729,24 +1729,28 @@
             document.getElementById('input-panel').classList.add('show');
             document.getElementById('fab').classList.add('open');
             
-            // 자동 붙여넣기 (클립보드 확인)
-            try {
-                if (!editingId && navigator.clipboard && navigator.clipboard.readText) {
-                    const text = await navigator.clipboard.readText();
-                    if (text && text.match(/https?:\/\/[^\s]+/)) {
-                        const urlInput = document.getElementById('url-input');
-                        if (!urlInput.value) {
-                            urlInput.value = text.trim();
-                            onUrlInput();
-                            showToast('클립보드 URL을 추가했습니다.', 'info');
+            // 350ms: 슬라이드업 애니메이션 대기 후 포커스 및 클립보드 확인
+            setTimeout(async () => {
+                const urlInput = document.getElementById('url-input');
+                urlInput.focus();
+
+                // 모바일 OS(iOS 등)에서 툴팁이 렌더링을 차단하지 않도록,
+                // 패널이 다 올라온 직후(포커스 상태)에 클립보드 권한을 요청합니다.
+                try {
+                    if (!editingId && navigator.clipboard && navigator.clipboard.readText) {
+                        const text = await navigator.clipboard.readText();
+                        if (text && text.match(/https?:\/\/[^\s]+/)) {
+                            if (!urlInput.value) {
+                                urlInput.value = text.trim();
+                                onUrlInput();
+                                showToast('클립보드 URL을 추가했습니다.', 'info');
+                            }
                         }
                     }
+                } catch (err) {
+                    console.log('Clipboard issue or permission denied:', err);
                 }
-            } catch (err) {
-                console.log('Clipboard issue:', err);
-            }
-
-            setTimeout(() => document.getElementById('url-input').focus(), 350);
+            }, 350);
         }
 
         function closePanel() {
