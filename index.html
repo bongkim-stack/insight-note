@@ -933,8 +933,8 @@
             <!-- 태그 -->
             <div class="mb-4">
                 <div class="flex items-center justify-between mb-1.5">
-                    <label class="form-label mb-0" for="tags-input">태그 <span
-                            class="text-slate-600 normal-case font-normal text-[11px]">(콤마로 구분)</span></label>
+                    <label class="form-label mb-0" for="tag-search-input">태그 <span
+                            class="text-slate-600 normal-case font-normal text-[11px]">(엔터로 추가)</span></label>
                     <button type="button" id="ai-tag-btn" onclick="suggestTagsWithAI()" class="btn-ai">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -943,7 +943,11 @@
                         AI 태그 추천
                     </button>
                 </div>
-                <input id="tags-input" type="text" class="field" placeholder="AI, 트렌드, 마케팅" />
+                <div id="tags-chip-container" class="flex flex-wrap gap-1.5 field min-h-[46px] p-2 items-center cursor-text transition-colors focus-within:border-indigo-500/50" onclick="document.getElementById('tag-search-input').focus()">
+                    <div id="tags-chip-list" class="flex flex-wrap gap-1.5"></div>
+                    <input id="tag-search-input" type="text" class="bg-transparent border-none outline-none flex-1 min-w-[80px] text-sm text-slate-200 placeholder-slate-500" placeholder="태그 입력 후 엔터..." />
+                </div>
+                <input id="tags-input" type="hidden" />
                 <!-- AI 추천 태그 표시 영역 -->
                 <div id="ai-tag-suggestions" class="hidden mt-2 flex flex-wrap gap-1.5"></div>
             </div>
@@ -1453,8 +1457,10 @@
         function genColId() {
             return 'col_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
         }
-        function formatDate(iso) {
-            return new Date(iso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+        function formatDate(isoStr) {
+            const d = new Date(isoStr);
+            const yy = String(d.getFullYear()).slice(-2);
+            return `${yy}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
         }
         function getDomain(url) {
             try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
@@ -1601,7 +1607,7 @@
             const siteName = note.metadata?.siteName || domain;
 
             const thumbHtml = thumb
-                ? `<a href="#" onclick="openIframeModal('${esc(note.url)}'); return false;" class="thumb-wrap flex-shrink-0 block hover:opacity-80 transition-opacity"><img src="${esc(thumb)}" alt="" loading="lazy" onerror="this.parentElement.remove()" /></a>`
+                ? `<a href="#" onclick="event.stopPropagation(); openIframeModal('${esc(note.url)}'); return false;" class="thumb-wrap flex-shrink-0 block hover:opacity-80 transition-opacity"><img src="${esc(thumb)}" alt="" loading="lazy" onerror="this.parentElement.remove()" /></a>`
                 : '';
 
             const draftBadge = isDraft
@@ -1609,11 +1615,11 @@
                 : '';
 
             const titleRow = title
-                ? `<a href="#" onclick="openIframeModal('${esc(note.url)}'); return false;" class="block text-sm font-semibold text-slate-200 leading-snug truncate hover:text-indigo-300 transition-colors">${hl(title, q)}</a>`
+                ? `<a href="#" onclick="event.stopPropagation(); openIframeModal('${esc(note.url)}'); return false;" class="block text-sm font-semibold text-slate-200 leading-snug truncate hover:text-indigo-300 transition-colors">${hl(title, q)}</a>`
                 : '';
 
             const urlRow = note.url
-                ? `<a href="#" onclick="openIframeModal('${esc(note.url)}'); return false;"
+                ? `<a href="#" onclick="event.stopPropagation(); openIframeModal('${esc(note.url)}'); return false;"
            class="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-1.5 py-1 rounded mt-1">
          ${favicon ? `<img src="${favicon}" alt="" class="w-3 h-3 rounded-sm flex-shrink-0" onerror="this.remove()" />` : ''}
          <svg class="w-3.5 h-3.5 flex-shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -1629,9 +1635,9 @@
                 : '';
 
             return `
-    <article class="note-card ${isDraft ? 'draft' : ''} fade-up" style="animation-delay:${idx * 30}ms" id="card-${note.id}">
+    <article class="note-card ${isDraft ? 'draft' : ''} fade-up cursor-pointer" style="animation-delay:${idx * 30}ms" id="card-${note.id}" onclick="openDetailModal('${note.id}')">
       ${thumbHtml}
-      <div class="flex-1 min-w-0 flex flex-col h-full">
+      <div class="flex-1 min-w-0 flex flex-col h-full pointer-events-auto">
         <div class="space-y-1 mb-2">
           ${draftBadge}
           ${titleRow}
@@ -1639,7 +1645,7 @@
         </div>
         ${contentHtml ? `<div class="mb-2">${contentHtml}</div>` : ''}
         ${tagsHtml ? `<div class="mt-auto mb-2">${tagsHtml}</div>` : '<div class="mt-auto"></div>'}
-        <div class="flex items-center justify-between mt-auto pt-2 border-t border-white/5">
+        <div class="flex items-center justify-between mt-auto pt-2 border-t border-white/5" onclick="event.stopPropagation()">
           <time class="text-[11px] text-slate-600">${formatDate(note.createdAt)}</time>
           <div class="flex items-center gap-1">
             <button onclick="startEdit('${note.id}')"
@@ -1771,6 +1777,8 @@
         function resetForm() {
             document.getElementById('note-form').reset();
             document.getElementById('meta-preview').classList.remove('show');
+            currentTagChips = [];
+            renderTagChips();
             if (metaAbort) metaAbort.abort();
             editingId = null;
             // AI 추천 태그 초기화
@@ -1827,6 +1835,76 @@
         }
 
         // ═══════════════════════════════════════════════════
+        //  TAG CHIP UI
+        // ═══════════════════════════════════════════════════
+        let currentTagChips = [];
+        
+        function renderTagChips() {
+            const container = document.getElementById('tags-chip-list');
+            const hiddenInput = document.getElementById('tags-input');
+            const searchInput = document.getElementById('tag-search-input');
+            
+            if(!container || !hiddenInput) return;
+            
+            container.innerHTML = currentTagChips.map((t, idx) => `
+                <span class="inline-flex items-center gap-1 bg-indigo-500/20 text-indigo-300 text-[11px] px-2 py-1 rounded-md border border-indigo-500/30">
+                    ${esc(t)}
+                    <button type="button" onclick="event.stopPropagation(); removeTagChip(${idx})" class="w-4 h-4 flex flex-shrink-0 items-center justify-center rounded-full hover:bg-indigo-500/40 text-indigo-400 hover:text-white transition-colors">
+                        <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </span>
+            `).join('');
+            
+            hiddenInput.value = currentTagChips.join(',');
+            
+            if(searchInput) {
+                 searchInput.placeholder = currentTagChips.length > 0 ? "" : "태그 입력 후 엔터...";
+            }
+        }
+        
+        function addTagChip(tag) {
+            const t = tag.trim();
+            if (t && !currentTagChips.includes(t)) {
+                currentTagChips.push(t);
+                renderTagChips();
+            }
+        }
+        
+        function removeTagChip(idx) {
+            currentTagChips.splice(idx, 1);
+            renderTagChips();
+        }
+        
+        function setupTagInput() {
+            const input = document.getElementById('tag-search-input');
+            if(!input) return;
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    if(input.value.trim()) {
+                        input.value.split(',').forEach(v => addTagChip(v));
+                        input.value = '';
+                    }
+                } else if (e.key === 'Backspace' && input.value === '' && currentTagChips.length > 0) {
+                    removeTagChip(currentTagChips.length - 1);
+                }
+            });
+            input.addEventListener('blur', () => {
+                if(input.value.trim()) {
+                    input.value.split(',').forEach(v => addTagChip(v));
+                    input.value = '';
+                }
+            });
+            
+            // AI 추천 클릭 시 추가될 수 있도록 글로벌 함수 추가 노출
+            window.applyAiTags = function(tagsString) {
+                if(tagsString) {
+                    tagsString.split(',').forEach(v => addTagChip(v));
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
         //  EDIT
         // ═══════════════════════════════════════════════════
         function startEdit(id) {
@@ -1838,7 +1916,8 @@
             // 폼 채우기
             document.getElementById('url-input').value = note.url || '';
             document.getElementById('content-input').value = note.content || '';
-            document.getElementById('tags-input').value = note.tags.join(', ');
+            currentTagChips = [...(note.tags || [])];
+            renderTagChips();
             renderCollectionCheckboxes(note.collectionIds || []);
 
             // 메타 미리보기 복원
@@ -2359,6 +2438,7 @@
             renderList();
         }
 
+        setupTagInput();
         loadNotes();
         refresh();
         handleShareTarget();
@@ -2434,6 +2514,75 @@
             }, 300);
             document.body.style.overflow = '';
         }
+
+        // ═══════════════════════════════════════════════════
+        //  DETAIL MODAL (새로운 모달)
+        // ═══════════════════════════════════════════════════
+        function openDetailModal(noteId) {
+            const note = notes.find(n => n.id === noteId);
+            if (!note) return;
+            
+            const detailModal = document.getElementById('detail-modal');
+            const contentWrap = document.getElementById('detail-content');
+            
+            const domain = getDomain(note.url);
+            const siteName = note.metadata?.siteName || domain;
+            const favicon = note.url ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : '';
+            const thumbUrl = note.metadata?.image || '';
+            const isDraft = !note.content || note.content.trim() === '';
+            
+            let html = `
+                <div class="mb-5 flex flex-col gap-3">
+                    ${thumbUrl ? `<img src="${esc(thumbUrl)}" alt="" class="w-full h-40 object-cover rounded-xl border border-white/10" onerror="this.style.display='none'" />` : ''}
+                    <div>
+                        <a href="${esc(note.url)}" target="_blank" rel="noopener noreferrer" class="text-base font-bold text-slate-100 leading-snug hover:text-indigo-400 transition-colors block mb-1">
+                            ${esc(note.title) || '제목 없음'}
+                        </a>
+                        ${note.url ? `
+                            <a href="${esc(note.url)}" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-md">
+                                ${favicon ? `<img src="${favicon}" alt="" class="w-3.5 h-3.5 rounded-sm" />` : ''}
+                                <span class="truncate">${esc(siteName)}</span>
+                            </a>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap bg-white/5 p-4 rounded-xl border border-white/5">
+                    ${isDraft ? '<span class="text-slate-500 italic">아직 작성된 인사이트가 없습니다.</span>' : esc(note.content)}
+                </div>
+                
+                ${note.tags && note.tags.length ? `
+                    <div class="mt-4 flex flex-wrap gap-1.5">
+                        ${note.tags.map(t => `<span class="px-2.5 py-1 bg-white/10 text-slate-300 text-[11px] rounded-lg border border-white/5">${esc(t)}</span>`).join('')}
+                    </div>
+                ` : ''}
+                
+                <div class="mt-5 flex items-center justify-between text-xs text-slate-500 border-t border-white/5 pt-4">
+                    <span>${formatDate(note.createdAt)}</span>
+                    <button onclick="closeDetailModal(); startEdit('${note.id}')" class="text-indigo-400 hover:text-indigo-300 font-medium px-3 py-1.5 bg-indigo-500/10 rounded-lg">편집하기</button>
+                </div>
+            `;
+            
+            contentWrap.innerHTML = html;
+            detailModal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                detailModal.classList.remove('opacity-0', 'pointer-events-none');
+                detailModal.querySelector('.modal-box').classList.add('show');
+            });
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDetailModal() {
+            const detailModal = document.getElementById('detail-modal');
+            detailModal.classList.add('opacity-0', 'pointer-events-none');
+            detailModal.querySelector('.modal-box').classList.remove('show');
+            setTimeout(() => {
+                detailModal.classList.add('hidden');
+                document.getElementById('detail-content').innerHTML = '';
+            }, 300);
+            document.body.style.overflow = '';
+        }
+
     </script>
 
     <!-- ══════════════ IFRAME MODAL ══════════════ -->
@@ -2458,6 +2607,20 @@
             </div>
             <!-- sandbox 속성을 추가하여 iframe 내 제약을 일부 풀어줌 -->
             <iframe id="iframe-content" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" class="absolute inset-0 w-full h-full border-none z-10 bg-transparent" onload="document.getElementById('iframe-loader').style.display='none'"></iframe>
+        </div>
+    </div>
+
+    <!-- ══════════════ DETAIL MODAL ══════════════ -->
+    <div id="detail-modal" class="fixed inset-0 z-[60] bg-black/60 hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none" onclick="closeDetailModal()">
+        <div class="modal-box w-full max-w-lg bg-slate-800 rounded-2xl p-5 shadow-2xl transition-transform transform scale-95 duration-300" onclick="event.stopPropagation()">
+            <div class="flex justify-end mb-2">
+                <button onclick="closeDetailModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="detail-content" class="max-h-[75vh] overflow-y-auto overscroll-contain pb-2 custom-scrollbar">
+                <!-- 내용이 JS를 통해 동적 삽입됩니다 -->
+            </div>
         </div>
     </div>
 </body>
