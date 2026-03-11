@@ -898,7 +898,7 @@
             <span id="edit-label">노트 수정 중</span>
         </div>
 
-        <form id="note-form" onsubmit="handleSubmit(event)" novalidate>
+        <form id="note-form" onsubmit="handleSubmit(event); return false;" novalidate>
 
             <!-- URL -->
             <div class="mb-3">
@@ -1070,7 +1070,11 @@
         let currentUser = null;
 
         // 인증 지속성 설정 (명시적 LOCAL 설정)
-        auth.setPersistence(firebase.auth.Persistence.LOCAL).catch(err => console.error('Persistence error:', err));
+        try {
+            auth.setPersistence('local').catch(err => console.warn('Persistence error:', err));
+        } catch (e) {
+            console.warn('Persistence API not available:', e.message);
+        }
 
         // 리다이렉트 로그인 결과 처리 (모바일/PWA 안정화)
         function checkRedirectResult() {
@@ -1131,11 +1135,15 @@
             const password = document.getElementById('auth-password').value.trim();
             if (!email || password.length < 6) return showToast('유효한 이메일과 6자리 이상의 비밀번호를 입력해주세요.', 'error');
 
+            // 로딩 상태 표시
+            const authBtn = document.querySelector('#auth-modal .btn-primary');
+            const originalBtnText = authBtn.textContent;
+            authBtn.disabled = true;
+            authBtn.innerHTML = `<span class="spinner mr-2"></span>처리 중...`;
+
             try {
-                // 임시로 로그인 시도 후 실패 시 가입 시도 로직
                 await auth.signInWithEmailAndPassword(email, password).catch(async (error) => {
-                    // Firebase 최신 버전에서는 없는 이메일이거나 비번이 틀렸을 때 invalid-login-credentials 발생
-                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials' || error.code === 'auth/wrong-password') {
                         try {
                             return await auth.createUserWithEmailAndPassword(email, password);
                         } catch (signUpError) {
@@ -1150,7 +1158,23 @@
                 closeModal('auth-modal');
                 showToast('클라우드에 연결되었습니다.', 'success');
             } catch (err) {
-                showToast('이메일 인증: ' + (err.message.includes('비밀번호') ? err.message : '이메일/비밀번호를 확인해주세요.'), 'error', 4000);
+                const msg = err.message || '';
+                if (msg.includes('비밀번호')) {
+                    showToast('비밀번호가 틀렸습니다.', 'error', 4000);
+                } else if (err.code === 'auth/invalid-email') {
+                    showToast('유효하지 않은 이메일 형식입니다.', 'error', 4000);
+                } else if (err.code === 'auth/too-many-requests') {
+                    showToast('너무 많은 시도를 했습니다. 잠시 후 다시 시도해주세요.', 'error', 5000);
+                } else if (err.code === 'auth/network-request-failed') {
+                    showToast('네트워크 오류입니다. 인터넷 연결을 확인해주세요.', 'error', 4000);
+                } else if (err.code === 'auth/weak-password') {
+                    showToast('비밀번호가 너무 약합니다. 6자리 이상으로 설정해주세요.', 'error', 4000);
+                } else {
+                    showToast('이메일/비밀번호를 확인해주세요. (' + (err.code || '알 수 없는 오류') + ')', 'error', 4000);
+                }
+            } finally {
+                authBtn.disabled = false;
+                authBtn.textContent = originalBtnText;
             }
         }
 
@@ -1162,27 +1186,34 @@
                 }
 
                 const provider = new authModule.GoogleAuthProvider();
-                // 2단계 인증 등을 대비해 데이터 유실 방지 스코프 추가 (필요시)
                 provider.addScope('email');
                 provider.addScope('profile');
 
-                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-                if (isMobile) {
-                    showToast('구글 로그인 페이지로 이동합니다...', 'info');
-                    closeModal('auth-modal');
-                    // 약간의 지연 후 리다이렉트 실행 (UI 업데이트 보장)
-                    setTimeout(() => auth.signInWithRedirect(provider), 500);
-                } else {
-                    await auth.signInWithPopup(provider).then(() => {
+                // 팝업 우선 시도, 실패 시 리다이렉트 폴백 (모든 환경 동일)
+                try {
+                    const result = await auth.signInWithPopup(provider);
+                    if (result && result.user) {
                         closeModal('auth-modal');
                         showToast('구글 계정 연결 성공!', 'success');
-                    });
+                    }
+                } catch (popupErr) {
+                    console.warn('Popup login failed, falling back to redirect:', popupErr.code);
+                    // 팝업 차단, 취소, 또는 크로스오리진 이슈 → 리다이렉트로 폴백
+                    if (popupErr.code === 'auth/popup-closed-by-user') {
+                        showToast('로그인 팝업이 닫혔습니다.', 'info');
+                        return;
+                    }
+                    if (popupErr.code === 'auth/cancelled-popup-request') {
+                        return; // 중복 팝업 요청 무시
+                    }
+                    showToast('구글 로그인 페이지로 이동합니다...', 'info');
+                    closeModal('auth-modal');
+                    setTimeout(() => auth.signInWithRedirect(provider), 300);
                 }
             } catch (err) {
                 console.error('Google Auth Error:', err);
-                if (err.code === 'auth/popup-blocked') {
-                    showToast('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해 주세요.', 'error', 6000);
+                if (err.code === 'auth/network-request-failed') {
+                    showToast('네트워크 오류입니다. 인터넷 연결을 확인해주세요.', 'error', 5000);
                 } else {
                     showToast('로그인 오류: ' + (err.message || '인증 서버 응답 없음'), 'error');
                 }
@@ -1416,6 +1447,9 @@
         // ═══════════════════════════════════════════════════
         function genId() {
             return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        }
+        function genColId() {
+            return 'col_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
         }
         function formatDate(iso) {
             return new Date(iso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
@@ -1799,72 +1833,94 @@
         // ═══════════════════════════════════════════════════
         //  CRUD
         // ═══════════════════════════════════════════════════
+        let isSubmitting = false;
+
         async function handleSubmit(e) {
-            e.preventDefault();
-
-            const url = document.getElementById('url-input').value.trim();
-            const content = document.getElementById('content-input').value.trim();
-            const rawTags = document.getElementById('tags-input').value.trim();
-            const tags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : [];
-
-            const collectionIds = Array.from(document.querySelectorAll('input[name="collections"]:checked')).map(cb => cb.value);
-
-            if (!url) {
-                showToast('URL을 입력해주세요.', 'error');
-                document.getElementById('url-input').focus();
-                return;
-            }
-            try { new URL(url); } catch {
-                showToast('올바른 URL 형식으로 입력해주세요.', 'error');
-                return;
-            }
-
-            const btn = document.getElementById('submit-btn');
-            btn.disabled = true;
-            btn.innerHTML = `<span class="spinner mr-2"></span>${editingId ? '수정 중...' : '저장 중...'}`;
-
-            // metadata: 이미 미리보기에서 받아둔 데이터 재사용 or 새로 fetch
-            let metadata = { title: null, thumbnail: null, siteName: null };
             try {
-                if (metaAbort) metaAbort.abort();
-                const res = await fetch(
-                    `https://linkmeta.dev/api/v1/extract?url=${encodeURIComponent(url)}&fields=title,image,siteName`,
-                    { signal: (metaAbort = new AbortController()).signal }
-                );
-                if (res.ok) {
-                    const { data } = await res.json();
-                    metadata = { title: data.title || null, thumbnail: data.image || null, siteName: data.siteName || null };
-                }
-            } catch { }
+                if (e && e.preventDefault) e.preventDefault();
+                if (isSubmitting) return;
+                isSubmitting = true;
 
-            if (editingId) {
-                // ─── 수정 ───
-                const idx = notes.findIndex(n => n.id === editingId);
-                let updatedNote;
-                if (idx !== -1) {
-                    updatedNote = { ...notes[idx], url, content, tags, collectionIds, metadata, updatedAt: new Date().toISOString() };
-                    notes[idx] = updatedNote;
+                const url = document.getElementById('url-input').value.trim();
+                const content = document.getElementById('content-input').value.trim();
+                const rawTags = document.getElementById('tags-input').value.trim();
+                const tags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : [];
+                const collectionIds = Array.from(document.querySelectorAll('input[name="collections"]:checked')).map(cb => cb.value);
+
+                if (!url) {
+                    showToast('URL을 입력해주세요.', 'error');
+                    document.getElementById('url-input').focus();
+                    isSubmitting = false;
+                    return;
                 }
-                await saveNoteToDB(updatedNote);
-                showToast('노트가 수정되었습니다.', 'success');
-            } else {
-                // ─── 신규 ───
-                const newNote = {
-                    id: genId(),
-                    url,
-                    content,
-                    tags,
-                    collectionIds,
-                    createdAt: new Date().toISOString(),
-                    metadata,
-                };
-                notes.unshift(newNote);
-                await saveNoteToDB(newNote);
-                showToast(content ? '인사이트가 저장되었습니다! 🎉' : 'URL이 저장되었습니다. 나중에 인사이트를 추가하세요.', 'success');
+                try { new URL(url); } catch {
+                    showToast('올바른 URL 형식으로 입력해주세요.', 'error');
+                    isSubmitting = false;
+                    return;
+                }
+
+                const btn = document.getElementById('submit-btn');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = editingId ? '수정 중...' : '저장 중...';
+                }
+
+                // metadata fetch (5초 타임아웃)
+                let metadata = { title: null, thumbnail: null, siteName: null };
+                try {
+                    if (metaAbort) metaAbort.abort();
+                    metaAbort = new AbortController();
+                    const timeoutId = setTimeout(() => metaAbort.abort(), 5000);
+                    const res = await fetch(
+                        `https://linkmeta.dev/api/v1/extract?url=${encodeURIComponent(url)}&fields=title,image,siteName`,
+                        { signal: metaAbort.signal }
+                    );
+                    clearTimeout(timeoutId);
+                    if (res.ok) {
+                        const { data } = await res.json();
+                        metadata = { title: data.title || null, thumbnail: data.image || null, siteName: data.siteName || null };
+                    }
+                } catch (_) {
+                    // 메타데이터 실패해도 저장은 계속 진행
+                }
+
+                if (editingId) {
+                    const idx = notes.findIndex(n => n.id === editingId);
+                    let updatedNote;
+                    if (idx !== -1) {
+                        updatedNote = { ...notes[idx], url, content, tags, collectionIds, metadata, updatedAt: new Date().toISOString() };
+                        notes[idx] = updatedNote;
+                    }
+                    await saveNoteToDB(updatedNote);
+                    showToast('노트가 수정되었습니다.', 'success');
+                } else {
+                    const newNote = {
+                        id: genId(),
+                        url,
+                        content,
+                        tags,
+                        collectionIds,
+                        createdAt: new Date().toISOString(),
+                        metadata,
+                    };
+                    notes.unshift(newNote);
+                    await saveNoteToDB(newNote);
+                    showToast(content ? '인사이트가 저장되었습니다! 🎉' : 'URL이 저장되었습니다. 나중에 인사이트를 추가하세요.', 'success');
+                }
+
+                refresh();
+                closePanel();
+            } catch (err) {
+                console.error('저장 오류:', err);
+                showToast('저장에 실패했습니다: ' + (err.message || '알 수 없는 오류'), 'error', 4000);
+            } finally {
+                isSubmitting = false;
+                const btnRestore = document.getElementById('submit-btn');
+                if (btnRestore) {
+                    btnRestore.disabled = false;
+                    btnRestore.textContent = editingId ? '수정하기' : '저장하기';
+                }
             }
-
-            refresh();
-            closePanel();
         }
 
         async function deleteNote(id) {
@@ -2250,6 +2306,25 @@
         loadNotes();
         refresh();
         handleShareTarget();
+
+        // ── 폼 이벤트 리스너 명시적 등록 (백업) ──
+        const noteForm = document.getElementById('note-form');
+        if (noteForm) {
+            noteForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!isSubmitting) handleSubmit(e);
+            });
+        }
+
+        // submit 버튼 click 핸들러 (백업)
+        const submitBtn = document.getElementById('submit-btn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (!isSubmitting) handleSubmit(e);
+            });
+        }
     </script>
 </body>
 
