@@ -764,7 +764,8 @@
                     <p class="text-[10px] text-slate-600 mt-0.5">v3.2.1</p>
                 </div>
             </div>
-            <div class="relative flex items-center gap-1">
+            <div class="relative flex items-center gap-2">
+                <span id="user-email-display" class="text-[10px] text-indigo-300 font-medium hidden max-w-[80px] truncate sm:max-w-[120px]"></span>
                 <button id="auth-btn" onclick="openAuthModal()"
                     class="btn-ghost px-2 py-1 text-xs font-semibold rounded-lg">로그인</button>
                 <button id="install-btn" class="hidden btn-icon text-emerald-400 hover:bg-emerald-500/10"
@@ -1111,11 +1112,18 @@
 
         auth.onAuthStateChanged(user => {
             const authBtn = document.getElementById('auth-btn');
+            const emailDisplay = document.getElementById('user-email-display');
             if (dbUnsubscribe) { dbUnsubscribe(); dbUnsubscribe = null; }
 
             if (user) {
                 currentUser = user;
                 authBtn.textContent = '로그아웃';
+                
+                if (user.email) {
+                    emailDisplay.textContent = user.email.split('@')[0];
+                    emailDisplay.classList.remove('hidden');
+                }
+                
                 authBtn.onclick = () => {
                     if (confirm('정말 로그아웃하시겠습니까?')) {
                         auth.signOut();
@@ -1125,6 +1133,8 @@
             } else {
                 currentUser = null;
                 authBtn.textContent = '로그인';
+                emailDisplay.classList.add('hidden');
+                emailDisplay.textContent = '';
                 authBtn.onclick = openAuthModal;
             }
             loadNotes();
@@ -2481,7 +2491,14 @@
             spinner.style.display = 'block';
             statusText.textContent = '연결 중입니다...';
             statusText.className = 'text-sm text-slate-600 font-medium';
-            iframe.src = 'about:blank'; // 초기화 후 바로 덮어씀
+            iframe.src = 'about:blank'; // 무한 잔상 방지용 초기화
+            
+            // iframe onload 안정화 (about:blank 로 인한 로더 조기 종료 방지)
+            iframe.onload = () => {
+                if (iframe.src && iframe.src !== 'about:blank' && !iframe.src.startsWith(window.location.origin)) {
+                    loader.style.display = 'none';
+                }
+            };
 
             modal.classList.remove('hidden');
             requestAnimationFrame(() => {
@@ -2507,78 +2524,12 @@
 
         function closeIframeModal() {
             const modal = document.getElementById('iframe-modal');
+            const iframe = document.getElementById('iframe-content');
             modal.classList.add('opacity-0', 'pointer-events-none');
             setTimeout(() => {
                 modal.classList.add('hidden');
-                document.getElementById('iframe-content').src = '';
-            }, 300);
-            document.body.style.overflow = '';
-        }
-
-        // ═══════════════════════════════════════════════════
-        //  DETAIL MODAL (새로운 모달)
-        // ═══════════════════════════════════════════════════
-        function openDetailModal(noteId) {
-            const note = notes.find(n => n.id === noteId);
-            if (!note) return;
-            
-            const detailModal = document.getElementById('detail-modal');
-            const contentWrap = document.getElementById('detail-content');
-            
-            const domain = getDomain(note.url);
-            const siteName = note.metadata?.siteName || domain;
-            const favicon = note.url ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : '';
-            const thumbUrl = note.metadata?.image || '';
-            const isDraft = !note.content || note.content.trim() === '';
-            
-            let html = `
-                <div class="mb-5 flex flex-col gap-3">
-                    ${thumbUrl ? `<img src="${esc(thumbUrl)}" alt="" class="w-full h-40 object-cover rounded-xl border border-white/10" onerror="this.style.display='none'" />` : ''}
-                    <div>
-                        <a href="${esc(note.url)}" target="_blank" rel="noopener noreferrer" class="text-base font-bold text-slate-100 leading-snug hover:text-indigo-400 transition-colors block mb-1">
-                            ${esc(note.title) || '제목 없음'}
-                        </a>
-                        ${note.url ? `
-                            <a href="${esc(note.url)}" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-md">
-                                ${favicon ? `<img src="${favicon}" alt="" class="w-3.5 h-3.5 rounded-sm" />` : ''}
-                                <span class="truncate">${esc(siteName)}</span>
-                            </a>
-                        ` : ''}
-                    </div>
-                </div>
-                
-                <div class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap bg-white/5 p-4 rounded-xl border border-white/5">
-                    ${isDraft ? '<span class="text-slate-500 italic">아직 작성된 인사이트가 없습니다.</span>' : esc(note.content)}
-                </div>
-                
-                ${note.tags && note.tags.length ? `
-                    <div class="mt-4 flex flex-wrap gap-1.5">
-                        ${note.tags.map(t => `<span class="px-2.5 py-1 bg-white/10 text-slate-300 text-[11px] rounded-lg border border-white/5">${esc(t)}</span>`).join('')}
-                    </div>
-                ` : ''}
-                
-                <div class="mt-5 flex items-center justify-between text-xs text-slate-500 border-t border-white/5 pt-4">
-                    <span>${formatDate(note.createdAt)}</span>
-                    <button onclick="closeDetailModal(); startEdit('${note.id}')" class="text-indigo-400 hover:text-indigo-300 font-medium px-3 py-1.5 bg-indigo-500/10 rounded-lg">편집하기</button>
-                </div>
-            `;
-            
-            contentWrap.innerHTML = html;
-            detailModal.classList.remove('hidden');
-            requestAnimationFrame(() => {
-                detailModal.classList.remove('opacity-0', 'pointer-events-none');
-                detailModal.querySelector('.modal-box').classList.add('show');
-            });
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeDetailModal() {
-            const detailModal = document.getElementById('detail-modal');
-            detailModal.classList.add('opacity-0', 'pointer-events-none');
-            detailModal.querySelector('.modal-box').classList.remove('show');
-            setTimeout(() => {
-                detailModal.classList.add('hidden');
-                document.getElementById('detail-content').innerHTML = '';
+                iframe.src = 'about:blank';
+                iframe.onload = null;
             }, 300);
             document.body.style.overflow = '';
         }
@@ -2586,27 +2537,27 @@
     </script>
 
     <!-- ══════════════ IFRAME MODAL ══════════════ -->
-    <div id="iframe-modal" class="fixed inset-0 z-[100] w-full h-full bg-slate-900 hidden flex-col transition-opacity duration-300 opacity-0 pointer-events-none">
-        <div class="flex items-center justify-between p-3 bg-slate-800 border-b border-white/10 shrink-0">
-            <button onclick="closeIframeModal()" class="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 text-white" aria-label="닫기">
+    <div id="iframe-modal" class="fixed inset-0 z-[100] bg-slate-900 hidden flex-col transition-opacity duration-300 opacity-0 pointer-events-none" style="height: 100dvh;">
+        <div class="flex items-center justify-between p-3 bg-slate-800 border-b border-white/10 shrink-0 h-[60px]">
+            <button onclick="closeIframeModal()" class="flex items-center justify-center w-9 h-9 rounded-full bg-white/10 text-white" aria-label="닫기">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <span class="text-xs font-medium text-slate-300 truncate px-4 flex-1 text-center" id="iframe-domain"></span>
             <div class="flex items-center gap-2">
-                <a id="iframe-external-link" href="#" target="_blank" class="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-1.5 rounded-lg whitespace-nowrap hidden sm:flex">새 창 열기</a>
-                <a href="#" onclick="document.getElementById('iframe-external-link').click(); return false;" class="text-indigo-400 p-1 bg-indigo-500/10 rounded-lg sm:hidden">
+                <a id="iframe-external-link" href="#" target="_blank" class="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-lg whitespace-nowrap hidden sm:flex">새 창 열기</a>
+                <a href="#" onclick="document.getElementById('iframe-external-link').click(); return false;" class="text-indigo-400 w-9 h-9 flex items-center justify-center bg-indigo-500/10 rounded-lg sm:hidden">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                 </a>
             </div>
         </div>
-        <div class="flex-1 w-full bg-white relative flex flex-col overflow-hidden">
+        <div class="flex-1 w-full relative bg-white overflow-hidden" style="height: calc(100dvh - 60px);">
             <div id="iframe-loader" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-100 p-6 text-center">
                 <div id="iframe-spinner" class="w-8 h-8 md:w-10 md:h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p id="iframe-status-text" class="text-sm text-slate-600 font-medium">연결 중입니다...</p>
                 <p id="iframe-warning-text" class="text-[11px] text-slate-400 mt-3 max-w-[280px]">인스타그램, 유튜브 등 일부 사이트는 보안 정책상 이 화면에서 열리지 않을 수 있습니다. 빈 화면이 지속될 경우 우측 상단의 <b>'새 창 열기'</b> 아이콘을 이용해 주세요.</p>
             </div>
             <!-- sandbox 속성을 추가하여 iframe 내 제약을 일부 풀어줌 -->
-            <iframe id="iframe-content" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" class="absolute inset-0 w-full h-full border-none z-10 bg-transparent" onload="document.getElementById('iframe-loader').style.display='none'"></iframe>
+            <iframe id="iframe-content" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" class="absolute inset-0 w-full h-full border-none z-10 bg-white"></iframe>
         </div>
     </div>
 
